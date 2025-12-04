@@ -16,6 +16,11 @@ class UserRepository:
     async def get_by_email(db: AsyncSession, email: str):
         result = await db.execute(select(User).where(User.email == email))
         return result.scalar_one_or_none()
+    
+    @staticmethod
+    async def get_by_phone(db: AsyncSession, phone: str):
+        result = await db.execute(select(User).where(User.phone == phone))
+        return result.scalar_one_or_none()
 
     @staticmethod
     async def get_by_id(db: AsyncSession, user_id: int):

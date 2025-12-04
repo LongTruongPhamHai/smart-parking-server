@@ -10,7 +10,7 @@ class UserController:
 
     @staticmethod
     async def signin(login_data: UserLogin, db: AsyncSession):
-        return await UserService.signin(db, login_data.email, login_data.password)
+        return await UserService.signin(db, login_data.phone, login_data.password)
 
     @staticmethod
     async def get_users(db: AsyncSession):

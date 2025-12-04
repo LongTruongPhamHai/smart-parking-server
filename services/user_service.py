@@ -16,8 +16,8 @@ class UserService:
         return await UserRepository.create(db, user)
 
     @staticmethod
-    async def signin(db: AsyncSession, email: str, password: str):
-        user = await UserRepository.get_by_email(db, email)
+    async def signin(db: AsyncSession, phone: str, password: str):
+        user = await UserRepository.get_by_phone(db, phone)
         if not user or user.password != password:
             return None
         return user

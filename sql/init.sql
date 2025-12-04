@@ -9,6 +9,15 @@ CREATE TABLE users (
     updated_at TIMESTAMP DEFAULT NOW()          -- Ngày cập nhật
 );
 
+UPDATE users
+SET role = 'customer'
+WHERE role = 'user';
+
+ALTER TABLE users
+ALTER COLUMN role SET DEFAULT 'customer';
+
+
+
 CREATE TABLE wallets (
     id SERIAL PRIMARY KEY,             								-- id tự tăng
     user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,  	-- liên kết với bảng users
@@ -71,3 +80,4 @@ VALUES
     ('Bob Tran', 'bob@example.com', '0902345678', 'admin', '111111'),
     ('Charlie Le', 'charlie@example.com', '0903456789', 'user', '111111');
 
+SELECT * FROM users;
