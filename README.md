@@ -66,7 +66,7 @@ uvicorn
 pydantic
 pydantic[email]
 python-dotenv
-motor   # hoặc pymongo
+motor
 ```
 
 Cài đặt tất cả:
