@@ -1,23 +1,6 @@
-# FastAPI framework
 fastapi
-
-# Uvicorn server
-uvicorn[standard]
-
-# SQLAlchemy >= 1.4 để dùng async
-SQLAlchemy>=2.0
-
-# Async PostgreSQL driver
-asyncpg
-
-# Pydantic cho schema & validate dữ liệu
+uvicorn
+motor
 pydantic
-
-# Load biến môi trường từ .env
+pydantic[email]
 python-dotenv
-
-# Hash password
-passlib[bcrypt]
-
-# Validate email
-email-validator

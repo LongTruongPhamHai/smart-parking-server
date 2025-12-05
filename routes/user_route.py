@@ -1,48 +1,37 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from schemas.user_schema import UserCreate, UserLogin, UserUpdate, UserOut
+from fastapi import APIRouter
 from controllers.user_controller import UserController
-from db import get_db
-from typing import List
+from schemas.user_schema import UserSignup, UserSignin, UserUpdate, UserResponse
 
-router = APIRouter()
+router = APIRouter(prefix="/users", tags=["Users"])
 
-@router.post("/signup", response_model=UserOut)
-async def signup(user: UserCreate, db: AsyncSession = Depends(get_db)):
-    existing = await UserController.get_users(db)
-    for u in existing:
-        if u.email == user.email:
-            raise HTTPException(status_code=400, detail="Email already exists")
-    return await UserController.signup(user, db)
+@router.post("/signup", response_model=UserResponse)
+async def signup(user: UserSignup):
+    return await UserController.signup(user)
 
-@router.post("/signin", response_model=UserOut)
-async def signin(login: UserLogin, db: AsyncSession = Depends(get_db)):
-    user = await UserController.signin(login, db)
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    return user
+@router.post("/signin", response_model=UserResponse)
+async def signin(user: UserSignin):
+    return await UserController.signin(user)
 
-@router.get("/", response_model=List[UserOut])
-async def get_users(db: AsyncSession = Depends(get_db)):
-    return await UserController.get_users(db)
+@router.get("/", response_model=list[UserResponse])
+async def get_all_users():
+    return await UserController.get_all_users()
 
-@router.get("/{user_id}", response_model=UserOut)
-async def get_user_by_id(user_id: int, db: AsyncSession = Depends(get_db)):
-    user = await UserController.get_user_by_id(user_id, db)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
+@router.get("/by-id/{user_id}", response_model=UserResponse)
+async def get_user_by_id(user_id: str):
+    return await UserController.get_user_by_id(user_id)
 
-@router.put("/{user_id}", response_model=UserOut)
-async def update_user(user_id: int, data: UserUpdate, db: AsyncSession = Depends(get_db)):
-    user = await UserController.update(user_id, data, db)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
+@router.get("/by-phone/{phone}", response_model=UserResponse)
+async def get_user_by_phone(phone: str):
+    return await UserController.get_user_by_phone(phone)
+
+@router.get("/by-email/{email}", response_model=UserResponse)
+async def get_user_by_email(email: str):
+    return await UserController.get_user_by_email(email)
+
+@router.put("/{user_id}", response_model=UserResponse)
+async def update_user(user_id: str, user: UserUpdate):
+    return await UserController.update_user(user_id, user)
 
 @router.delete("/{user_id}")
-async def delete_user(user_id: int, db: AsyncSession = Depends(get_db)):
-    result = await UserController.delete(user_id, db)
-    if not result:
-        raise HTTPException(status_code=404, detail="User not found")
-    return {"message": "User deleted successfully"}
+async def delete_user(user_id: str):
+    return await UserController.delete_user(user_id)

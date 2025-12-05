@@ -1,53 +1,41 @@
 from repositories.user_repository import UserRepository
-from sqlalchemy.ext.asyncio import AsyncSession
-from schemas.user_schema import UserCreate, UserUpdate
-from models.user_model import User
+from schemas.user_schema import UserSignup, UserSignin, UserUpdate
 
 class UserService:
+    @staticmethod
+    async def signup(user: UserSignup):
+        existing = await UserRepository.find_by_phone(user.phone)
+        if existing:
+            raise ValueError("Phone already exists")
+        return await UserRepository.create(user.dict())
 
     @staticmethod
-    async def signup(db: AsyncSession, user_data: UserCreate):
-        user = User(
-            name=user_data.name,
-            email=user_data.email,
-            phone=user_data.phone,
-            password=user_data.password  
-        )
-        return await UserRepository.create(db, user)
+    async def signin(user: UserSignin):
+        existing = await UserRepository.find_by_phone(user.phone)
+        if not existing or existing.password != user.password:
+            raise ValueError("Invalid phone or password")
+        return existing
 
     @staticmethod
-    async def signin(db: AsyncSession, phone: str, password: str):
-        user = await UserRepository.get_by_phone(db, phone)
-        if not user or user.password != password:
-            return None
-        return user
+    async def get_all_users():
+        return await UserRepository.get_all()
 
     @staticmethod
-    async def get_users(db: AsyncSession):
-        return await UserRepository.get_all(db)
+    async def get_user_by_id(user_id: str):
+        return await UserRepository.get_by_id(user_id)
+    
+    @staticmethod
+    async def get_user_by_phone(phone: str):
+        return await UserRepository.get_by_phone(phone)
 
     @staticmethod
-    async def get_user_by_id(db: AsyncSession, user_id: int):
-        return await UserRepository.get_by_id(db, user_id)
+    async def get_user_by_email(email: str):
+        return await UserRepository.get_by_email(email)
 
     @staticmethod
-    async def update(db: AsyncSession, user_id: int, data: UserUpdate):
-        user = await UserRepository.get_by_id(db, user_id)
-        if not user:
-            return None
-        if data.name:
-            user.name = data.name
-        if data.email:
-            user.email = data.email
-        if data.phone:
-            user.phone = data.phone
-        if data.password:
-            user.password = data.password  
-        return await UserRepository.update(db, user)
+    async def update_user(user_id: str, user: UserUpdate):
+        return await UserRepository.update(user_id, user.dict(exclude_unset=True))
 
     @staticmethod
-    async def delete(db: AsyncSession, user_id: int):
-        user = await UserRepository.get_by_id(db, user_id)
-        if not user:
-            return None
-        return await UserRepository.delete(db, user)
+    async def delete_user(user_id: str):
+        return await UserRepository.delete(user_id)

@@ -1,46 +1,57 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from models.user_model import User
-from schemas.user_schema import UserCreate
+from db import db
+from models.user_model import UserModel
+from datetime import datetime
+from bson import ObjectId
 
 class UserRepository:
+    collection = db["users"]
 
     @staticmethod
-    async def create(db: AsyncSession, user: User):
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
-        return user
+    async def create(user_data: dict) -> UserModel:
+        user_data["role"] = user_data.get("role", "customer")
+        user_data["created_at"] = datetime.utcnow()
+        user_data["updated_at"] = datetime.utcnow()
+        result = await UserRepository.collection.insert_one(user_data)
+        user_data["_id"] = result.inserted_id
+        return UserModel(user_data)
 
     @staticmethod
-    async def get_by_email(db: AsyncSession, email: str):
-        result = await db.execute(select(User).where(User.email == email))
-        return result.scalar_one_or_none()
+    async def find_by_phone(phone: str) -> UserModel | None:
+        user = await UserRepository.collection.find_one({"phone": phone})
+        return UserModel(user) if user else None
+
+    @staticmethod
+    async def get_all() -> list[UserModel]:
+        users = await UserRepository.collection.find().to_list(100)
+        return [UserModel(u) for u in users]
+
+    @staticmethod
+    async def get_by_id(user_id: str) -> UserModel | None:
+        user = await UserRepository.collection.find_one({"_id": ObjectId(user_id)})
+        return UserModel(user) if user else None
     
     @staticmethod
-    async def get_by_phone(db: AsyncSession, phone: str):
-        result = await db.execute(select(User).where(User.phone == phone))
-        return result.scalar_one_or_none()
+    async def get_by_phone(phone: str) -> UserModel | None:
+        user = await UserRepository.collection.find_one({"phone": phone})
+        return UserModel(user) if user else None
 
     @staticmethod
-    async def get_by_id(db: AsyncSession, user_id: int):
-        result = await db.execute(select(User).where(User.id == user_id))
-        return result.scalar_one_or_none()
+    async def get_by_email(email: str) -> UserModel | None:
+        user = await UserRepository.collection.find_one({"email": email})
+        return UserModel(user) if user else None
+
 
     @staticmethod
-    async def get_all(db: AsyncSession):
-        result = await db.execute(select(User))
-        return result.scalars().all()
+    async def update(user_id: str, update_data: dict) -> UserModel | None:
+        update_data["updated_at"] = datetime.utcnow()
+        result = await UserRepository.collection.find_one_and_update(
+            {"_id": ObjectId(user_id)},
+            {"$set": update_data},
+            return_document=True
+        )
+        return UserModel(result) if result else None
 
     @staticmethod
-    async def delete(db: AsyncSession, user: User):
-        await db.delete(user)
-        await db.commit()
-        return True
-
-    @staticmethod
-    async def update(db: AsyncSession, user: User):
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
-        return user
+    async def delete(user_id: str) -> bool:
+        result = await UserRepository.collection.delete_one({"_id": ObjectId(user_id)})
+        return result.deleted_count > 0

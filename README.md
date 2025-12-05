@@ -15,9 +15,6 @@ server/
 ├─ .env                        # Biến môi trường
 ├─ requirements.txt            # Thư viện Python cần cài đặt
 │
-├─ sql/
-│   └─ init.sql                # Script SQL khởi tạo cơ sở dữ liệu
-│
 ├─ models/                     # Các model SQLAlchemy
 │   ├─ __init__.py
 │   └─ user_model.py

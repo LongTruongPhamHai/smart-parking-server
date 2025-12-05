@@ -1,28 +1,29 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
+from datetime import datetime
 
-class UserCreate(BaseModel):
+class UserSignup(BaseModel):
     name: str
     email: EmailStr
-    phone: Optional[str]
+    phone: str
     password: str
 
-class UserLogin(BaseModel):
+class UserSignin(BaseModel):
     phone: str
     password: str
 
 class UserUpdate(BaseModel):
     name: Optional[str]
+    email: Optional[EmailStr]
     phone: Optional[str]
-    email: Optional[str]
     password: Optional[str]
+    role: Optional[str]
 
-class UserOut(BaseModel):
-    id: int
+class UserResponse(BaseModel):
+    id: str
     name: str
     email: EmailStr
-    phone: Optional[str]
+    phone: str
     role: str
-
-    class Config:
-        orm_mode = True
+    created_at: datetime
+    updated_at: datetime
