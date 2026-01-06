@@ -8,7 +8,7 @@ class UserModel:
         self.phone = data.get("phone")
         self.password = data.get("password")
         self.role = data.get("role")
-        self.balance = float(data.get("balance", 0.0))  # Thêm balance
+        self.balance = float(data.get("balance", 0.0))
         self.created_at = data.get("created_at")
         self.updated_at = data.get("updated_at")
 
@@ -19,7 +19,7 @@ class UserModel:
             "phone": self.phone,
             "password": self.password,
             "role": self.role,
-            "balance": self.balance,  # Thêm balance
+            "balance": self.balance,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }

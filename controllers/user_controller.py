@@ -39,8 +39,6 @@ class UserController:
             raise HTTPException(status_code=404, detail="User not found")
         return UserResponse(**user.to_dict())
 
-    # Bỏ get_user_by_email vì không còn email
-
     @staticmethod
     async def update_user(user_id: str, user: UserUpdate) -> UserResponse:
         updated = await UserService.update_user(user_id, user)
@@ -48,9 +46,6 @@ class UserController:
             raise HTTPException(status_code=404, detail="User not found")
         return UserResponse(**updated.to_dict())
 
-    # ==========================
-    # Nạp tiền vào tài khoản
-    # ==========================
     @staticmethod
     async def add_balance(user_id: str, amount: float) -> UserResponse:
         """
@@ -69,9 +64,6 @@ class UserController:
             raise HTTPException(status_code=404, detail="User not found")
         return {"message": "User deleted successfully"}
 
-    # ==========================
-    # Check in / Check out
-    # ==========================
     @staticmethod
     async def check_in(user: UserSignin):
         try:

@@ -1,34 +1,41 @@
-# repositories/parking_lot_repository.py
-from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
+from models.parking_lot_model import ParkingLotModel
+from db import db
 
 
 class ParkingLotRepository:
-    client = AsyncIOMotorClient("mongodb://localhost:27017")
-    db = client.smart_parking_db
     collection = db["parking_lots"]
 
     @staticmethod
-    async def add(data: dict):
+    async def create(data: dict) -> ParkingLotModel:
         result = await ParkingLotRepository.collection.insert_one(data)
-        return str(result.inserted_id)
+        data["_id"] = result.inserted_id
+        return ParkingLotModel(data)
 
     @staticmethod
-    async def get_all():
-        return await ParkingLotRepository.collection.find().to_list(length=None)
+    async def getAll() -> list[ParkingLotModel]:
+        cursor = ParkingLotRepository.collection.find()
+        lots = await cursor.to_list(length=None)
+        return [ParkingLotModel(lot) for lot in lots]
 
     @staticmethod
-    async def get_by_id(plot_id: str):
-        return await ParkingLotRepository.collection.find_one(
+    async def getById(plot_id: str) -> ParkingLotModel | None:
+        data = await ParkingLotRepository.collection.find_one(
             {"_id": ObjectId(plot_id)}
         )
+        return ParkingLotModel(data) if data else None
 
     @staticmethod
-    async def update(plot_id: str, data: dict):
+    async def update(plot_id: str, data: dict) -> ParkingLotModel | None:
         await ParkingLotRepository.collection.update_one(
-            {"_id": ObjectId(plot_id)}, {"$set": data}
+            {"_id": ObjectId(plot_id)},
+            {"$set": data},
         )
+        return await ParkingLotRepository.getById(plot_id)
 
     @staticmethod
-    async def delete(plot_id: str):
-        await ParkingLotRepository.collection.delete_one({"_id": ObjectId(plot_id)})
+    async def delete(plot_id: str) -> bool:
+        result = await ParkingLotRepository.collection.delete_one(
+            {"_id": ObjectId(plot_id)}
+        )
+        return result.deleted_count == 1

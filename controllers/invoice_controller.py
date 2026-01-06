@@ -22,10 +22,29 @@ class InvoiceController:
         Check-out: cập nhật giờ ra, tính duration và tổng tiền
         """
         try:
-            update_data = {"end_time": datetime.utcnow()}
-            invoice = await self.service.complete_invoice(invoice_id, update_data)
+            invoice = await self.service.complete_invoice(invoice_id)
             if not invoice:
                 raise ValueError("Invoice not found or already completed")
             return InvoiceResponse(**invoice.to_dict())
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
+
+    async def get_all_invoices(self):
+        """
+        Lấy toàn bộ hóa đơn trong hệ thống
+        """
+        try:
+            invoices = await self.service.get_all_invoices()
+            return [InvoiceResponse(**i.to_dict()) for i in invoices]
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    async def get_invoices_by_user_id(self, user_id: str):
+        """
+        Lấy danh sách hóa đơn của một user
+        """
+        try:
+            invoices = await self.service.get_invoices_by_user_id(user_id)
+            return [InvoiceResponse(**i.to_dict()) for i in invoices]
+        except ValueError as e:
+            raise HTTPException(status_code=404, detail=str(e))

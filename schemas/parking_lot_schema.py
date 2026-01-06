@@ -1,11 +1,10 @@
-# schemas/parking_lot_schema.py
 from pydantic import BaseModel
 from typing import Optional
 
 
 class ParkingLotCreate(BaseModel):
     name: str
-    status: Optional[str] = "Trống"
+    status: Optional[str] = "available"
 
 
 class ParkingLotUpdate(BaseModel):

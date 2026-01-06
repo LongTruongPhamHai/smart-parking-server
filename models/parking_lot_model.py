@@ -1,9 +1,15 @@
-# models/parking_lot.py
-from pydantic import BaseModel, Field
-from typing import Optional
+from bson import ObjectId
 
 
-class ParkingLot(BaseModel):
-    id: Optional[str] = Field(None, alias="_id")
-    name: str
-    status: str = "Trống"  # Trống, Đã đặt, Đang sử dụng
+class ParkingLotModel:
+    def __init__(self, data: dict):
+        self.id = str(data.get("_id")) if data.get("_id") else None
+        self.name = data.get("name")
+        self.status = data.get("status", "available")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "status": self.status,
+        }

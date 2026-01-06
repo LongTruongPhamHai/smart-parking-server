@@ -19,7 +19,7 @@ class UserUpdate(BaseModel):
     phone: Optional[str]
     password: Optional[str]
     role: Optional[str]
-    balance: Optional[float]  # Thêm balance nếu muốn cập nhật số dư
+    balance: Optional[float]
 
 
 class UserResponse(BaseModel):
@@ -27,6 +27,6 @@ class UserResponse(BaseModel):
     name: str
     phone: str
     role: str
-    balance: float  # Thêm balance
+    balance: float
     created_at: datetime
     updated_at: datetime

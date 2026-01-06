@@ -1,7 +1,7 @@
 from bson import ObjectId
 from datetime import datetime
 from models.invoice_model import InvoiceModel
-from db import db  # db là client Motor
+from db import db
 
 
 class InvoiceRepository:
@@ -23,6 +23,15 @@ class InvoiceRepository:
         result = await InvoiceRepository.collection.insert_one(data)
         data["_id"] = result.inserted_id
         return InvoiceModel(data)
+
+    @staticmethod
+    async def getAllInvoices(limit: int = 100) -> list[InvoiceModel]:
+        """
+        Lấy toàn bộ hóa đơn (dành cho Admin)
+        """
+        cursor = InvoiceRepository.collection.find().sort("start_time", -1)
+        invoices = await cursor.to_list(length=limit)
+        return [InvoiceModel(i) for i in invoices]
 
     @staticmethod
     async def getInvoiceById(id: str) -> InvoiceModel | None:
@@ -64,10 +73,9 @@ class InvoiceRepository:
         )
 
         if not invoice_data:
-            return None  # Không tìm thấy
+            return None
 
         if invoice_data.get("status") != "Active":
-            # Hóa đơn đã Deactive, không update nữa
             return InvoiceModel(invoice_data)
 
         if "end_time" in update_data and update_data["end_time"]:
@@ -75,20 +83,17 @@ class InvoiceRepository:
             unit_price = float(invoice_data.get("unit_price", 50000.0))
 
             if start_time:
-                # Tính duration thực tế theo giờ
                 duration = (update_data["end_time"] - start_time).total_seconds() / 3600
-                duration = round(duration, 2)  # giữ 2 chữ số thập phân
+                duration = round(duration, 2)
                 update_data["duration"] = duration
 
-                # Tính tiền theo quy tắc:
                 if duration < 1:
                     total_price = unit_price
                 else:
-                    # làm tròn theo 0.5 giờ
                     hours_rounded = round(duration * 2) / 2
                     total_price = unit_price * hours_rounded
 
-                update_data["total_price"] = round(total_price, 0)  # làm tròn tiền
+                update_data["total_price"] = round(total_price, 0)
 
             update_data["status"] = "Deactive"
 

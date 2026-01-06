@@ -54,8 +54,7 @@ class UserService:
         if amount <= 0:
             raise ValueError("Amount must be positive")
 
-        # Sử dụng repository để cộng tiền vào balance
-        updated_user = await UserRepository.update_balance(user_id, amount)
+        updated_user = await UserRepository.add_balance(user_id, amount)
         if not updated_user:
             raise ValueError("User not found")
         return updated_user
@@ -104,28 +103,22 @@ class UserService:
         - Tự tính duration, total_price, status trong updateInvoice
         - Trừ balance của user
         """
-        # 1. Xác thực tài khoản
         existing = await UserRepository.find_by_phone(user.phone)
         if not existing or existing.password != user.password:
             raise ValueError("Invalid phone or password")
 
-        # 2. Lấy hóa đơn gần nhất (có thể lấy hóa đơn cuối cùng của user)
         invoices = await InvoiceRepository.getInvoiceByUserId(existing.id)
         if not invoices:
             raise ValueError("No invoice found for this user")
 
-        # Lấy hóa đơn gần nhất (theo start_time)
         invoice = max(invoices, key=lambda x: x.start_time)
 
-        # 3. Cập nhật hóa đơn
         update_data = {"end_time": datetime.utcnow()}
         updated_invoice = await InvoiceRepository.updateInvoice(invoice.id, update_data)
 
-        # 4. Trừ tiền trong tài khoản
         new_balance = existing.balance - updated_invoice.total_price
         if new_balance < 0:
             raise ValueError("Insufficient balance")
         await UserRepository.update(existing.id, {"balance": new_balance})
 
-        # 5. Trả về hóa đơn đã cập nhật
         return updated_invoice
