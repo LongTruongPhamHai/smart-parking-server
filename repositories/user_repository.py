@@ -1,40 +1,77 @@
-from bson import ObjectId
+from db import db
 from models.user_model import UserModel
+from datetime import datetime
+from bson import ObjectId
 
 
 class UserRepository:
-    def __init__(self, db_collection):
-        self.collection = db_collection
+    collection = db["users"]
 
-    def signUp(self, user_dict: dict):
-        result = self.collection.insert_one(user_dict)
-        user_dict["_id"] = result.inserted_id
-        return UserModel(user_dict)
+    @staticmethod
+    async def create(user_data: dict) -> UserModel:
+        user_data["role"] = user_data.get("role", "Khách hàng")
+        user_data["balance"] = float(
+            user_data.get("balance", 0.0)
+        )  # Thêm balance mặc định
+        user_data["created_at"] = datetime.utcnow()
+        user_data["updated_at"] = datetime.utcnow()
+        result = await UserRepository.collection.insert_one(user_data)
+        user_data["_id"] = result.inserted_id
+        return UserModel(user_data)
 
-    def signIn(self, phone: str, password: str):
-        user_data = self.collection.find_one({"phone": phone, "password": password})
-        return UserModel(user_data) if user_data else None
+    @staticmethod
+    async def find_by_phone(phone: str) -> UserModel | None:
+        user = await UserRepository.collection.find_one({"phone": phone})
+        return UserModel(user) if user else None
 
-    def getUsers(self):
-        cursor = self.collection.find()
-        return [UserModel(u) for u in cursor]
+    @staticmethod
+    async def get_all() -> list[UserModel]:
+        users = await UserRepository.collection.find().to_list(100)
+        return [UserModel(u) for u in users]
 
-    def getUserById(self, user_id: str):
-        user_data = self.collection.find_one({"_id": ObjectId(user_id)})
-        return UserModel(user_data) if user_data else None
+    @staticmethod
+    async def get_by_id(user_id: str) -> UserModel | None:
+        user = await UserRepository.collection.find_one({"_id": ObjectId(user_id)})
+        return UserModel(user) if user else None
 
-    def updateUser(self, user_id: str, update_data: dict):
-        result = self.collection.update_one(
-            {"_id": ObjectId(user_id)}, {"$set": update_data}
+    @staticmethod
+    async def get_by_phone(phone: str) -> UserModel | None:
+        user = await UserRepository.collection.find_one({"phone": phone})
+        return UserModel(user) if user else None
+
+    @staticmethod
+    async def update(user_id: str, update_data: dict) -> UserModel | None:
+        update_data["updated_at"] = datetime.utcnow()
+        if "balance" in update_data:
+            update_data["balance"] = float(
+                update_data["balance"]
+            )  # đảm bảo balance luôn là float
+        result = await UserRepository.collection.find_one_and_update(
+            {"_id": ObjectId(user_id)}, {"$set": update_data}, return_document=True
         )
-        return result.modified_count > 0
+        return UserModel(result) if result else None
 
-    def updateBalance(self, user_id: str, balance: float):
-        result = self.collection.update_one(
-            {"_id": ObjectId(user_id)}, {"$set": {"balance": balance}}
+    @staticmethod
+    async def add_balance(user_id: str, amount: float) -> UserModel | None:
+        """
+        Nạp tiền vào tài khoản user
+        """
+        if amount <= 0:
+            raise ValueError("Amount must be positive")
+
+        # Lấy user hiện tại
+        user = await UserRepository.get_by_id(user_id)
+        if not user:
+            return None
+
+        new_balance = user.balance + amount
+        update_data = {"balance": new_balance, "updated_at": datetime.utcnow()}
+        result = await UserRepository.collection.find_one_and_update(
+            {"_id": ObjectId(user_id)}, {"$set": update_data}, return_document=True
         )
-        return result.modified_count > 0
+        return UserModel(result) if result else None
 
-    def deleteUser(self, user_id: str):
-        result = self.collection.delete_one({"_id": ObjectId(user_id)})
+    @staticmethod
+    async def delete(user_id: str) -> bool:
+        result = await UserRepository.collection.delete_one({"_id": ObjectId(user_id)})
         return result.deleted_count > 0

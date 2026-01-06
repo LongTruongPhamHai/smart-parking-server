@@ -1,23 +1,19 @@
+# schemas/parking_lot_schema.py
 from pydantic import BaseModel
 from typing import Optional
 
 
 class ParkingLotCreate(BaseModel):
     name: str
-    unit_price: float
+    status: Optional[str] = "Trống"
 
 
 class ParkingLotUpdate(BaseModel):
     name: Optional[str] = None
-    unit_price: Optional[float] = None
-    status: Optional[str] = None  # 'available' hoặc 'occupied'
+    status: Optional[str] = None
 
 
 class ParkingLotResponse(BaseModel):
     id: str
     name: str
-    unit_price: float
     status: str
-
-    class Config:
-        from_attributes = True

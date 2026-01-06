@@ -1,30 +1,34 @@
+# repositories/parking_lot_repository.py
+from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
-from models.parking_lot_model import ParkingLotModel
 
 
 class ParkingLotRepository:
-    def __init__(self, db_collection):
-        self.collection = db_collection
+    client = AsyncIOMotorClient("mongodb://localhost:27017")
+    db = client.smart_parking_db
+    collection = db["parking_lots"]
 
-    def addPLot(self, plot_dict: dict):
-        result = self.collection.insert_one(plot_dict)
-        plot_dict["_id"] = result.inserted_id
-        return ParkingLotModel(plot_dict)
+    @staticmethod
+    async def add(data: dict):
+        result = await ParkingLotRepository.collection.insert_one(data)
+        return str(result.inserted_id)
 
-    def getPLots(self):
-        cursor = self.collection.find()
-        return [ParkingLotModel(p) for p in cursor]
+    @staticmethod
+    async def get_all():
+        return await ParkingLotRepository.collection.find().to_list(length=None)
 
-    def getPLotById(self, id: str):
-        data = self.collection.find_one({"_id": ObjectId(id)})
-        return ParkingLotModel(data) if data else None
-
-    def updatePlot(self, id: str, update_data: dict):
-        result = self.collection.update_one(
-            {"_id": ObjectId(id)}, {"$set": update_data}
+    @staticmethod
+    async def get_by_id(plot_id: str):
+        return await ParkingLotRepository.collection.find_one(
+            {"_id": ObjectId(plot_id)}
         )
-        return result.modified_count > 0
 
-    def deletePlot(self, id: str):
-        result = self.collection.delete_one({"_id": ObjectId(id)})
-        return result.deleted_count > 0
+    @staticmethod
+    async def update(plot_id: str, data: dict):
+        await ParkingLotRepository.collection.update_one(
+            {"_id": ObjectId(plot_id)}, {"$set": data}
+        )
+
+    @staticmethod
+    async def delete(plot_id: str):
+        await ParkingLotRepository.collection.delete_one({"_id": ObjectId(plot_id)})

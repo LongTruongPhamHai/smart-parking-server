@@ -1,5 +1,6 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import Optional
+from datetime import datetime
 
 
 class UserSignup(BaseModel):
@@ -14,13 +15,11 @@ class UserSignin(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    name: Optional[str] = None
-    phone: Optional[str] = None
-    password: Optional[str] = None
-
-
-class UserUpdateBalance(BaseModel):
-    balance: float
+    name: Optional[str]
+    phone: Optional[str]
+    password: Optional[str]
+    role: Optional[str]
+    balance: Optional[float]  # Thêm balance nếu muốn cập nhật số dư
 
 
 class UserResponse(BaseModel):
@@ -28,7 +27,6 @@ class UserResponse(BaseModel):
     name: str
     phone: str
     role: str
-    balance: float
-
-    class Config:
-        from_attributes = True
+    balance: float  # Thêm balance
+    created_at: datetime
+    updated_at: datetime
