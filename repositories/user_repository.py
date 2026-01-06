@@ -1,57 +1,40 @@
-from db import db
-from models.user_model import UserModel
-from datetime import datetime
 from bson import ObjectId
+from models.user_model import UserModel
+
 
 class UserRepository:
-    collection = db["users"]
+    def __init__(self, db_collection):
+        self.collection = db_collection
 
-    @staticmethod
-    async def create(user_data: dict) -> UserModel:
-        user_data["role"] = user_data.get("role", "customer")
-        user_data["created_at"] = datetime.utcnow()
-        user_data["updated_at"] = datetime.utcnow()
-        result = await UserRepository.collection.insert_one(user_data)
-        user_data["_id"] = result.inserted_id
-        return UserModel(user_data)
+    def signUp(self, user_dict: dict):
+        result = self.collection.insert_one(user_dict)
+        user_dict["_id"] = result.inserted_id
+        return UserModel(user_dict)
 
-    @staticmethod
-    async def find_by_phone(phone: str) -> UserModel | None:
-        user = await UserRepository.collection.find_one({"phone": phone})
-        return UserModel(user) if user else None
+    def signIn(self, phone: str, password: str):
+        user_data = self.collection.find_one({"phone": phone, "password": password})
+        return UserModel(user_data) if user_data else None
 
-    @staticmethod
-    async def get_all() -> list[UserModel]:
-        users = await UserRepository.collection.find().to_list(100)
-        return [UserModel(u) for u in users]
+    def getUsers(self):
+        cursor = self.collection.find()
+        return [UserModel(u) for u in cursor]
 
-    @staticmethod
-    async def get_by_id(user_id: str) -> UserModel | None:
-        user = await UserRepository.collection.find_one({"_id": ObjectId(user_id)})
-        return UserModel(user) if user else None
-    
-    @staticmethod
-    async def get_by_phone(phone: str) -> UserModel | None:
-        user = await UserRepository.collection.find_one({"phone": phone})
-        return UserModel(user) if user else None
+    def getUserById(self, user_id: str):
+        user_data = self.collection.find_one({"_id": ObjectId(user_id)})
+        return UserModel(user_data) if user_data else None
 
-    @staticmethod
-    async def get_by_email(email: str) -> UserModel | None:
-        user = await UserRepository.collection.find_one({"email": email})
-        return UserModel(user) if user else None
-
-
-    @staticmethod
-    async def update(user_id: str, update_data: dict) -> UserModel | None:
-        update_data["updated_at"] = datetime.utcnow()
-        result = await UserRepository.collection.find_one_and_update(
-            {"_id": ObjectId(user_id)},
-            {"$set": update_data},
-            return_document=True
+    def updateUser(self, user_id: str, update_data: dict):
+        result = self.collection.update_one(
+            {"_id": ObjectId(user_id)}, {"$set": update_data}
         )
-        return UserModel(result) if result else None
+        return result.modified_count > 0
 
-    @staticmethod
-    async def delete(user_id: str) -> bool:
-        result = await UserRepository.collection.delete_one({"_id": ObjectId(user_id)})
+    def updateBalance(self, user_id: str, balance: float):
+        result = self.collection.update_one(
+            {"_id": ObjectId(user_id)}, {"$set": {"balance": balance}}
+        )
+        return result.modified_count > 0
+
+    def deleteUser(self, user_id: str):
+        result = self.collection.delete_one({"_id": ObjectId(user_id)})
         return result.deleted_count > 0

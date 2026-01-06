@@ -1,29 +1,21 @@
-from repositories.parking_lot_repository import ParkingLotRepository
-
-
 class ParkingLotService:
-    @staticmethod
-    async def add_parking_lot(plot_data: dict):
-        # Bạn có thể thêm logic kiểm tra tên bãi xe đã tồn tại chưa nếu cần
-        return await ParkingLotRepository.addPLot(plot_data)
+    def __init__(self, repository):
+        self.repository = repository
 
-    @staticmethod
-    async def get_all_parking_lots():
-        return await ParkingLotRepository.getPLots()
+    def add_parking_lot(self, data):
+        plot_dict = data.model_dump()
+        plot_dict["status"] = "available"  # Luôn mặc định trống khi mới tạo
+        return self.repository.addPLot(plot_dict)
 
-    @staticmethod
-    async def get_parking_lot_by_id(plot_id: str):
-        plot = await ParkingLotRepository.getPLotById(plot_id)
-        if not plot:
-            raise ValueError("Parking lot not found")
-        return plot
+    def get_all_plots(self):
+        return self.repository.getPLots()
 
-    @staticmethod
-    async def update_parking_lot(plot_id: str, update_data: dict):
-        # Loại bỏ các giá trị None để tránh ghi đè dữ liệu cũ bằng null
-        clean_data = {k: v for k, v in update_data.items() if v is not None}
-        return await ParkingLotRepository.updatePlot(plot_id, clean_data)
+    def get_plot_by_id(self, plot_id: str):
+        return self.repository.getPLotById(plot_id)
 
-    @staticmethod
-    async def delete_parking_lot(plot_id: str):
-        return await ParkingLotRepository.deletePlot(plot_id)
+    def update_plot(self, plot_id: str, info):
+        update_data = {k: v for k, v in info.model_dump().items() if v is not None}
+        return self.repository.updatePlot(plot_id, update_data)
+
+    def delete_plot(self, plot_id: str):
+        return self.repository.deletePlot(plot_id)

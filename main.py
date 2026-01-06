@@ -1,10 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routes import (
+    invoice_route,
     user_route,
-    wallet_route,
     parking_lot_route,
-    parking_transaction_route,
 )
 
 app = FastAPI()
@@ -25,6 +24,5 @@ app.add_middleware(
 
 
 app.include_router(user_route.router)
-app.include_router(wallet_route.router)
 app.include_router(parking_lot_route.router)
-app.include_router(parking_transaction_route.router)
+app.include_router(invoice_route.router)

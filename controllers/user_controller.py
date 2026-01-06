@@ -1,60 +1,32 @@
 from fastapi import HTTPException
-from services.user_service import UserService
-from schemas.user_schema import UserSignup, UserSignin, UserUpdate, UserResponse
+from schemas.user_schema import UserResponse
+
 
 class UserController:
-    @staticmethod
-    async def signup(user: UserSignup) -> UserResponse:
-        try:
-            new_user = await UserService.signup(user)
-            return UserResponse(**new_user.to_dict())
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+    def __init__(self, service):
+        self.service = service
 
-    @staticmethod
-    async def signin(user: UserSignin) -> UserResponse:
-        try:
-            existing = await UserService.signin(user)
-            return UserResponse(**existing.to_dict())
-        except ValueError as e:
-            raise HTTPException(status_code=401, detail=str(e))
+    def signup(self, data):
+        user = self.service.signUp(data)
+        return UserResponse(**user.to_dict())
 
-    @staticmethod
-    async def get_all_users() -> list[UserResponse]:
-        users = await UserService.get_all_users()
+    def signin(self, credentials):
+        user = self.service.signIn(credentials.phone, credentials.password)
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        return UserResponse(**user.to_dict())
+
+    def get_users(self):
+        users = self.service.getUsers()
         return [UserResponse(**u.to_dict()) for u in users]
 
-    @staticmethod
-    async def get_user_by_id(user_id: str) -> UserResponse:
-        user = await UserService.get_user_by_id(user_id)
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        return UserResponse(**user.to_dict())
-    
-    @staticmethod
-    async def get_user_by_phone(phone: str) -> UserResponse:
-        user = await UserService.get_user_by_phone(phone)
+    def get_user(self, user_id):
+        user = self.service.getUserById(user_id)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         return UserResponse(**user.to_dict())
 
-    @staticmethod
-    async def get_user_by_email(email: str) -> UserResponse:
-        user = await UserService.get_user_by_email(email)
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        return UserResponse(**user.to_dict())
-
-    @staticmethod
-    async def update_user(user_id: str, user: UserUpdate) -> UserResponse:
-        updated = await UserService.update_user(user_id, user)
-        if not updated:
-            raise HTTPException(status_code=404, detail="User not found")
-        return UserResponse(**updated.to_dict())
-
-    @staticmethod
-    async def delete_user(user_id: str) -> dict:
-        deleted = await UserService.delete_user(user_id)
-        if not deleted:
-            raise HTTPException(status_code=404, detail="User not found")
-        return {"message": "User deleted successfully"}
+    def update_balance(self, user_id, balance):
+        if not self.service.updateBalance(user_id, balance):
+            raise HTTPException(status_code=404, detail="Update failed")
+        return {"message": "Balance updated successfully"}

@@ -1,48 +1,31 @@
 from fastapi import HTTPException
-from services.parking_lot_service import ParkingLotService
-from schemas.parking_lot_schema import (
-    ParkingLotCreate,
-    ParkingLotUpdate,
-    ParkingLotResponse,
-)
+from schemas.parking_lot_schema import ParkingLotResponse
 
 
 class ParkingLotController:
-    @staticmethod
-    async def add_parking_lot(plot_data: ParkingLotCreate) -> ParkingLotResponse:
-        try:
-            new_plot = await ParkingLotService.add_parking_lot(plot_data.dict())
-            return ParkingLotResponse(**new_plot.to_dict())
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=str(e))
+    def __init__(self, service):
+        self.service = service
 
-    @staticmethod
-    async def get_all_parking_lots() -> list[ParkingLotResponse]:
-        plots = await ParkingLotService.get_all_parking_lots()
+    def add_plot(self, data):
+        new_plot = self.service.add_parking_lot(data)
+        return ParkingLotResponse(**new_plot.to_dict())
+
+    def get_plots(self):
+        plots = self.service.get_all_plots()
         return [ParkingLotResponse(**p.to_dict()) for p in plots]
 
-    @staticmethod
-    async def get_parking_lot_by_id(plot_id: str) -> ParkingLotResponse:
-        try:
-            plot = await ParkingLotService.get_parking_lot_by_id(plot_id)
-            return ParkingLotResponse(**plot.to_dict())
-        except ValueError as e:
-            raise HTTPException(status_code=404, detail=str(e))
+    def get_plot(self, plot_id: str):
+        plot = self.service.get_plot_by_id(plot_id)
+        if not plot:
+            raise HTTPException(status_code=404, detail="Slot not found")
+        return ParkingLotResponse(**plot.to_dict())
 
-    @staticmethod
-    async def update_parking_lot(
-        plot_id: str, update_data: ParkingLotUpdate
-    ) -> ParkingLotResponse:
-        updated = await ParkingLotService.update_parking_lot(
-            plot_id, update_data.dict(exclude_unset=True)
-        )
-        if not updated:
-            raise HTTPException(status_code=404, detail="Parking lot not found")
-        return ParkingLotResponse(**updated.to_dict())
+    def update_plot(self, plot_id: str, info):
+        if not self.service.update_plot(plot_id, info):
+            raise HTTPException(status_code=404, detail="Update failed")
+        return {"message": "Parking slot updated successfully"}
 
-    @staticmethod
-    async def delete_parking_lot(plot_id: str) -> dict:
-        deleted = await ParkingLotService.delete_parking_lot(plot_id)
-        if not deleted:
-            raise HTTPException(status_code=404, detail="Parking lot not found")
-        return {"message": "Parking lot deleted successfully"}
+    def delete_plot(self, plot_id: str):
+        if not self.service.delete_plot(plot_id):
+            raise HTTPException(status_code=404, detail="Slot not found")
+        return {"message": "Parking slot deleted"}

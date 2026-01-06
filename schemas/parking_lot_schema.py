@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime
 
 
 class ParkingLotCreate(BaseModel):
@@ -11,14 +10,14 @@ class ParkingLotCreate(BaseModel):
 class ParkingLotUpdate(BaseModel):
     name: Optional[str] = None
     unit_price: Optional[float] = None
+    status: Optional[str] = None  # 'available' hoặc 'occupied'
 
 
 class ParkingLotResponse(BaseModel):
     id: str
     name: str
     unit_price: float
-    created_at: Optional[datetime]
-    updated_at: Optional[datetime]
+    status: str
 
     class Config:
         from_attributes = True

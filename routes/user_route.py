@@ -1,37 +1,28 @@
 from fastapi import APIRouter
-from controllers.user_controller import UserController
-from schemas.user_schema import UserSignup, UserSignin, UserUpdate, UserResponse
+from db import db
+from repositories.invoice_repository import InvoiceRepository
+from repositories.user_repository import UserRepository
+from repositories.parking_lot_repository import ParkingLotRepository
+from services.invoice_service import InvoiceService
+from controllers.invoice_controller import InvoiceController
+from schemas.invoice_schema import InvoiceCreate, InvoiceResponse
 
-router = APIRouter(prefix="/users", tags=["Users"])
+router = APIRouter(prefix="/invoices", tags=["Invoices"])
 
-@router.post("/signup", response_model=UserResponse)
-async def signup(user: UserSignup):
-    return await UserController.signup(user)
+# Khởi tạo DI
+invoice_repo = InvoiceRepository(db["invoices"])
+user_repo = UserRepository(db["users"])
+plot_repo = ParkingLotRepository(db["parking_lots"])
 
-@router.post("/signin", response_model=UserResponse)
-async def signin(user: UserSignin):
-    return await UserController.signin(user)
+service = InvoiceService(invoice_repo, user_repo, plot_repo)
+controller = InvoiceController(service)
 
-@router.get("/", response_model=list[UserResponse])
-async def get_all_users():
-    return await UserController.get_all_users()
 
-@router.get("/by-id/{user_id}", response_model=UserResponse)
-async def get_user_by_id(user_id: str):
-    return await UserController.get_user_by_id(user_id)
+@router.post("/check-in", response_model=InvoiceResponse)
+async def check_in(data: InvoiceCreate):
+    return await controller.check_in(data)
 
-@router.get("/by-phone/{phone}", response_model=UserResponse)
-async def get_user_by_phone(phone: str):
-    return await UserController.get_user_by_phone(phone)
 
-@router.get("/by-email/{email}", response_model=UserResponse)
-async def get_user_by_email(email: str):
-    return await UserController.get_user_by_email(email)
-
-@router.put("/{user_id}", response_model=UserResponse)
-async def update_user(user_id: str, user: UserUpdate):
-    return await UserController.update_user(user_id, user)
-
-@router.delete("/{user_id}")
-async def delete_user(user_id: str):
-    return await UserController.delete_user(user_id)
+@router.post("/check-out/{invoice_id}", response_model=InvoiceResponse)
+async def check_out(invoice_id: str):
+    return await controller.check_out(invoice_id)
