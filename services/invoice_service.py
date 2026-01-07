@@ -59,7 +59,7 @@ class InvoiceService:
 
         update_data = {
             "end_time": end_time,
-            "duration": duration_hms,
+            "duration": duration_hours,
             "total_price": total_price,
             "status": "Deactive",
         }
@@ -77,9 +77,9 @@ class InvoiceService:
         """
         Lấy danh sách hóa đơn của 1 user
         """
-        user = self.user_repo.getUserById(user_id)
+        user = self.user_repo.get_by_id(user_id)
         if not user:
             raise ValueError("User không tồn tại")
 
-        invoices = self.invoice_repo.getInvoiceByUserId(user_id)
+        invoices = await self.invoice_repo.getInvoiceByUserId(user_id)
         return invoices

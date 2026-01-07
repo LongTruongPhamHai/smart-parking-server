@@ -2,10 +2,12 @@ from bson import ObjectId
 from datetime import datetime
 from models.invoice_model import InvoiceModel
 from db import db
+import pytz
 
 
 class InvoiceRepository:
     collection = db["invoices"]
+    tz = pytz.timezone("Asia/Bangkok")
 
     @staticmethod
     async def createInvoice(data: dict) -> InvoiceModel:
@@ -65,8 +67,8 @@ class InvoiceRepository:
         Cập nhật hóa đơn khi check-out
         - Chỉ update hóa đơn Active
         - Nếu có end_time, tính duration và total_price theo:
-            - < 1 giờ: 50.000
-            - >= 1 giờ: 50.000 * số giờ (làm tròn 30 phút)
+            - < 1 giờ: unit_price
+            - >= 1 giờ: unit_price * số giờ (làm tròn 30 phút)
         """
         invoice_data = await InvoiceRepository.collection.find_one(
             {"_id": ObjectId(id)}
@@ -81,16 +83,27 @@ class InvoiceRepository:
         if "end_time" in update_data and update_data["end_time"]:
             start_time = invoice_data.get("start_time")
             unit_price = float(invoice_data.get("unit_price", 50000.0))
+            end_time = update_data["end_time"]
 
             if start_time:
-                duration = (update_data["end_time"] - start_time).total_seconds() / 3600
-                duration = round(duration, 2)
-                update_data["duration"] = duration
+                # --- Convert start_time naive -> aware GMT+7 ---
+                if start_time.tzinfo is None:
+                    start_time = start_time.replace(tzinfo=pytz.utc).astimezone(
+                        InvoiceRepository.tz
+                    )
 
-                if duration < 1:
+                # --- Tính duration bằng giờ (float) ---
+                duration_hours = (end_time - start_time).total_seconds() / 3600
+                duration_hours = max(duration_hours, 0.01)  # tối thiểu 0.01 giờ
+                duration_hours = round(duration_hours, 2)
+                update_data["duration"] = duration_hours
+
+                # --- Tính total_price ---
+                if duration_hours < 1:
                     total_price = unit_price
                 else:
-                    hours_rounded = round(duration * 2) / 2
+                    # làm tròn 30 phút
+                    hours_rounded = round(duration_hours * 2) / 2
                     total_price = unit_price * hours_rounded
 
                 update_data["total_price"] = round(total_price, 0)

@@ -6,6 +6,7 @@ from datetime import datetime
 class UserSignup(BaseModel):
     name: str
     phone: str
+    email: str
     password: str
 
 
@@ -17,6 +18,7 @@ class UserSignin(BaseModel):
 class UserUpdate(BaseModel):
     name: Optional[str]
     phone: Optional[str]
+    email: Optional[str]
     password: Optional[str]
     role: Optional[str]
     balance: Optional[float]
@@ -25,6 +27,7 @@ class UserUpdate(BaseModel):
 class UserResponse(BaseModel):
     id: str
     name: str
+    email: str
     phone: str
     role: str
     balance: float
