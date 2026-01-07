@@ -19,7 +19,7 @@ class InvoiceRepository:
         )
         data.setdefault("start_time", now_utc7)
         data.setdefault("end_time", None)
-        data.setdefault("unit_price", 50000.0)
+        data.setdefault("unit_price", 30000.0)
         data.setdefault("duration", 0.0)
         data.setdefault("total_price", 0.0)
         data.setdefault("status", "Active")
@@ -82,7 +82,7 @@ class InvoiceRepository:
 
         if "end_time" in update_data and update_data["end_time"]:
             start_time = invoice_data.get("start_time")
-            unit_price = float(invoice_data.get("unit_price", 50000.0))
+            unit_price = float(invoice_data.get("unit_price", 30000.0))
             end_time = update_data["end_time"]
 
             if end_time.tzinfo is None:

@@ -88,7 +88,7 @@ class UserService:
             "user_id": existing.id,
             "start_time": UserService.now_gmt7(),
             "end_time": None,
-            "unit_price": 50000.0,
+            "unit_price": 30000.0,
             "duration": 0.0,
             "total_price": 0.0,
             "status": "Active",
@@ -112,23 +112,26 @@ class UserService:
         if not invoice.start_time:
             raise ValueError("Invoice start_time is missing")
 
-        total_seconds = max((end_time - invoice.start_time).total_seconds(), 60)
+        start_time = invoice.start_time
+        if start_time.tzinfo is None:
+            start_time = start_time.replace(tzinfo=pytz.utc).astimezone(UserService.tz)
+
+        total_seconds = max((end_time - start_time).total_seconds(), 60)
         hours = int(total_seconds // 3600)
         minutes = int((total_seconds % 3600) // 60)
 
-        unit_price = invoice.unit_price or 50000.0
+        unit_price = invoice.unit_price or 30000.0
 
         if hours == 0:
             total_amount = unit_price
         else:
-            total_amount = hours * unit_price
-            if minutes > 45:
-                total_amount += unit_price
+            hours_rounded = hours + (0.5 if minutes > 30 else 0)
+            total_amount = unit_price * hours_rounded
 
         update_data = {
             "end_time": end_time,
             "duration": total_seconds / 3600,
-            "total_price": total_amount,
+            "total_price": round(total_amount, 0),
             "status": "Deactive",
         }
         updated_invoice = await InvoiceRepository.updateInvoice(invoice.id, update_data)
