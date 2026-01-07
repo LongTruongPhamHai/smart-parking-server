@@ -1,21 +1,19 @@
 from repositories.user_repository import UserRepository
 from schemas.user_schema import UserSignup, UserSignin, UserUpdate
 from repositories.invoice_repository import InvoiceRepository
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 import pytz
+from math import floor
 
 
 class UserService:
-    tz = pytz.timezone("Asia/Bangkok")  # GMT+7
+    tz = pytz.timezone("Asia/Bangkok")
 
     @staticmethod
     def now_gmt7():
         """Trả về thời gian hiện tại theo GMT+7"""
         return datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(UserService.tz)
 
-    # ======================
-    # User signup / signin
-    # ======================
     @staticmethod
     async def signup(user: UserSignup):
         """Tạo user mới nếu phone/email chưa tồn tại"""
@@ -33,9 +31,6 @@ class UserService:
             raise ValueError("Invalid phone or password")
         return existing
 
-    # ======================
-    # Lấy thông tin user
-    # ======================
     @staticmethod
     async def get_all_users():
         return await UserRepository.get_all()
@@ -52,9 +47,6 @@ class UserService:
     async def get_user_by_email(email: str):
         return await UserRepository.get_by_email(email)
 
-    # ======================
-    # Cập nhật user / balance / email
-    # ======================
     @staticmethod
     async def update_user(user_id: str, user: UserUpdate):
         return await UserRepository.update(user_id, user.dict(exclude_unset=True))
@@ -86,9 +78,6 @@ class UserService:
     async def delete_user(user_id: str):
         return await UserRepository.delete(user_id)
 
-    # ======================
-    # Check-in / Check-out
-    # ======================
     @staticmethod
     async def check_in(user: UserSignin):
         existing = await UserRepository.find_by_phone(user.phone)
@@ -99,7 +88,10 @@ class UserService:
             "user_id": existing.id,
             "start_time": UserService.now_gmt7(),
             "end_time": None,
-            "total_amount": 0.0,
+            "unit_price": 50000.0,
+            "duration": 0.0,
+            "total_price": 0.0,
+            "status": "Active",
         }
         invoice = await InvoiceRepository.createInvoice(invoice_data)
         return invoice
@@ -115,32 +107,29 @@ class UserService:
             raise ValueError("No invoice found for this user")
 
         invoice = max(invoices, key=lambda x: x.start_time)
-
         end_time = UserService.now_gmt7()
 
-        if invoice.start_time:
-            if invoice.start_time.tzinfo is None:
-                from datetime import timezone
+        if not invoice.start_time:
+            raise ValueError("Invoice start_time is missing")
 
-                invoice_start = invoice.start_time.replace(
-                    tzinfo=timezone.utc
-                ).astimezone(UserService.tz)
-            else:
-                invoice_start = invoice.start_time
+        total_seconds = max((end_time - invoice.start_time).total_seconds(), 60)
+        hours = int(total_seconds // 3600)
+        minutes = int((total_seconds % 3600) // 60)
 
-            duration_hours = max(
-                (end_time - invoice_start).total_seconds() / 3600, 0.01
-            )
+        unit_price = invoice.unit_price or 50000.0
+
+        if hours == 0:
+            total_amount = unit_price
         else:
-            duration_hours = 0.0
-
-        price_per_hour = 10.0
-        total_amount = round(duration_hours * price_per_hour, 2)
+            total_amount = hours * unit_price
+            if minutes > 45:
+                total_amount += unit_price
 
         update_data = {
             "end_time": end_time,
-            "duration": duration_hours,
-            "total_amount": total_amount,
+            "duration": total_seconds / 3600,
+            "total_price": total_amount,
+            "status": "Deactive",
         }
         updated_invoice = await InvoiceRepository.updateInvoice(invoice.id, update_data)
 

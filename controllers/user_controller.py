@@ -4,9 +4,7 @@ from schemas.user_schema import UserSignup, UserSignin, UserUpdate, UserResponse
 
 
 class UserController:
-    # ======================
-    # Signup / Signin
-    # ======================
+
     @staticmethod
     async def signup(user: UserSignup) -> UserResponse:
         try:
@@ -23,9 +21,6 @@ class UserController:
         except ValueError as e:
             raise HTTPException(status_code=401, detail=str(e))
 
-    # ======================
-    # Get user
-    # ======================
     @staticmethod
     async def get_all_users() -> list[UserResponse]:
         users = await UserService.get_all_users()
@@ -52,9 +47,6 @@ class UserController:
             raise HTTPException(status_code=404, detail="User not found")
         return UserResponse(**user.to_dict())
 
-    # ======================
-    # Update user
-    # ======================
     @staticmethod
     async def update_user(user_id: str, user: UserUpdate) -> UserResponse:
         updated = await UserService.update_user(user_id, user)
@@ -92,9 +84,6 @@ class UserController:
             raise HTTPException(status_code=404, detail="User not found")
         return {"message": "User deleted successfully"}
 
-    # ======================
-    # Check-in / Check-out
-    # ======================
     @staticmethod
     async def check_in(user: UserSignin) -> dict:
         try:

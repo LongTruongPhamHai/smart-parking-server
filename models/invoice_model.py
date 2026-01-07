@@ -11,7 +11,7 @@ class InvoiceModel:
         self.unit_price = float(data.get("unit_price", 0.0))
         self.duration = float(data.get("duration", 0.0))
         self.total_price = float(data.get("total_price", 0.0))
-        self.status = data.get("status", "Active")  # Active mặc định
+        self.status = data.get("status", "Active")
 
     def to_dict(self):
         return {

@@ -11,8 +11,6 @@ class UserRepository:
     async def create(user_data: dict) -> UserModel:
         user_data["role"] = user_data.get("role", "Customer")
         user_data["balance"] = float(user_data.get("balance", 0.0))
-        user_data["created_at"] = datetime.utcnow()
-        user_data["updated_at"] = datetime.utcnow()
         result = await UserRepository.collection.insert_one(user_data)
         user_data["_id"] = result.inserted_id
         return UserModel(user_data)
@@ -39,7 +37,6 @@ class UserRepository:
 
     @staticmethod
     async def update(user_id: str, update_data: dict) -> UserModel | None:
-        update_data["updated_at"] = datetime.utcnow()
         if "balance" in update_data:
             update_data["balance"] = float(update_data["balance"])
         result = await UserRepository.collection.find_one_and_update(
@@ -60,7 +57,7 @@ class UserRepository:
             return None
 
         new_balance = user.balance + amount
-        update_data = {"balance": new_balance, "updated_at": datetime.utcnow()}
+        update_data = {"balance": new_balance}
         result = await UserRepository.collection.find_one_and_update(
             {"_id": ObjectId(user_id)}, {"$set": update_data}, return_document=True
         )
@@ -91,7 +88,7 @@ class UserRepository:
         """
         Cập nhật email của user
         """
-        update_data = {"email": new_email, "updated_at": datetime.utcnow()}
+        update_data = {"email": new_email}
         result = await UserRepository.collection.find_one_and_update(
             {"_id": ObjectId(user_id)}, {"$set": update_data}, return_document=True
         )

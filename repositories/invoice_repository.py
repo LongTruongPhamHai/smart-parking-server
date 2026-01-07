@@ -14,8 +14,10 @@ class InvoiceRepository:
         """
         Tạo hóa đơn mới khi xe check-in
         """
-        now = datetime.utcnow()
-        data.setdefault("start_time", now)
+        now_utc7 = (
+            datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(InvoiceRepository.tz)
+        )
+        data.setdefault("start_time", now_utc7)
         data.setdefault("end_time", None)
         data.setdefault("unit_price", 50000.0)
         data.setdefault("duration", 0.0)
@@ -66,9 +68,7 @@ class InvoiceRepository:
         """
         Cập nhật hóa đơn khi check-out
         - Chỉ update hóa đơn Active
-        - Nếu có end_time, tính duration và total_price theo:
-            - < 1 giờ: unit_price
-            - >= 1 giờ: unit_price * số giờ (làm tròn 30 phút)
+        - Nếu có end_time, tính duration và total_price
         """
         invoice_data = await InvoiceRepository.collection.find_one(
             {"_id": ObjectId(id)}
@@ -85,29 +85,31 @@ class InvoiceRepository:
             unit_price = float(invoice_data.get("unit_price", 50000.0))
             end_time = update_data["end_time"]
 
+            if end_time.tzinfo is None:
+                end_time = end_time.replace(tzinfo=pytz.utc).astimezone(
+                    InvoiceRepository.tz
+                )
+
             if start_time:
-                # --- Convert start_time naive -> aware GMT+7 ---
                 if start_time.tzinfo is None:
                     start_time = start_time.replace(tzinfo=pytz.utc).astimezone(
                         InvoiceRepository.tz
                     )
 
-                # --- Tính duration bằng giờ (float) ---
                 duration_hours = (end_time - start_time).total_seconds() / 3600
-                duration_hours = max(duration_hours, 0.01)  # tối thiểu 0.01 giờ
+                duration_hours = max(duration_hours, 0.01)
                 duration_hours = round(duration_hours, 2)
                 update_data["duration"] = duration_hours
 
-                # --- Tính total_price ---
                 if duration_hours < 1:
                     total_price = unit_price
                 else:
-                    # làm tròn 30 phút
                     hours_rounded = round(duration_hours * 2) / 2
                     total_price = unit_price * hours_rounded
 
                 update_data["total_price"] = round(total_price, 0)
 
+            update_data["end_time"] = end_time
             update_data["status"] = "Deactive"
 
         await InvoiceRepository.collection.update_one(

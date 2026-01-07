@@ -6,9 +6,6 @@ from pydantic import BaseModel
 router = APIRouter(prefix="/users", tags=["Users"])
 
 
-# ======================
-# Response schemas cho check-in / check-out
-# ======================
 class CheckInResponse(BaseModel):
     message: str
     invoice_id: str
@@ -23,9 +20,6 @@ class CheckOutResponse(BaseModel):
     total_amount: float
 
 
-# ======================
-# Signup / Signin
-# ======================
 @router.post("/signup", response_model=UserResponse)
 async def signup(user: UserSignup):
     return await UserController.signup(user)
@@ -36,9 +30,6 @@ async def signin(user: UserSignin):
     return await UserController.signin(user)
 
 
-# ======================
-# Get user
-# ======================
 @router.get("/", response_model=list[UserResponse])
 async def get_all_users():
     return await UserController.get_all_users()
@@ -59,9 +50,6 @@ async def get_user_by_email(email: str):
     return await UserController.get_user_by_email(email)
 
 
-# ======================
-# Update user
-# ======================
 @router.put("/{user_id}", response_model=UserResponse)
 async def update_user(user_id: str, user: UserUpdate):
     return await UserController.update_user(user_id, user)
@@ -74,9 +62,6 @@ async def update_email(
     return await UserController.update_email(user_id, new_email)
 
 
-# ======================
-# Balance
-# ======================
 @router.post(
     "/{user_id}/add-balance",
     response_model=UserResponse,
@@ -97,17 +82,11 @@ async def update_balance(
     return await UserController.update_balance(user_id, amount)
 
 
-# ======================
-# Delete user
-# ======================
 @router.delete("/{user_id}")
 async def delete_user(user_id: str):
     return await UserController.delete_user(user_id)
 
 
-# ======================
-# Check-in / Check-out
-# ======================
 @router.post(
     "/check-in", response_model=CheckInResponse, summary="Người dùng vào bãi gửi xe"
 )

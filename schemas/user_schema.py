@@ -31,5 +31,3 @@ class UserResponse(BaseModel):
     phone: str
     role: str
     balance: float
-    created_at: datetime
-    updated_at: datetime
