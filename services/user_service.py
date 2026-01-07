@@ -1,9 +1,19 @@
-from repositories.user_repository import UserRepository
-from schemas.user_schema import UserSignup, UserSignin, UserUpdate
-from repositories.invoice_repository import InvoiceRepository
-from datetime import datetime, timezone
+import os
 import pytz
-from math import floor
+import smtplib
+import asyncio
+from datetime import datetime, timedelta
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from repositories.user_repository import UserRepository
+from repositories.invoice_repository import InvoiceRepository
+from schemas.user_schema import UserSignup, UserSignin, UserUpdate
+
+# Load biến môi trường SMTP từ .env
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASS = os.getenv("SMTP_PASS", "")
 
 
 class UserService:
@@ -84,9 +94,10 @@ class UserService:
         if not existing or existing.password != user.password:
             raise ValueError("Invalid phone or password")
 
+        start_time = UserService.now_gmt7()
         invoice_data = {
             "user_id": existing.id,
-            "start_time": UserService.now_gmt7(),
+            "start_time": start_time,
             "end_time": None,
             "unit_price": 30000.0,
             "duration": 0.0,
@@ -94,6 +105,19 @@ class UserService:
             "status": "Active",
         }
         invoice = await InvoiceRepository.createInvoice(invoice_data)
+
+        if existing.email:
+            subject = "✅ Check-in thành công tại bãi xe"
+            body = (
+                f"Xin chào {existing.name},\n\n"
+                f"Bạn vừa check-in tại bãi xe.\n"
+                f"Thời gian check-in: {start_time.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                f"Cảm ơn bạn đã sử dụng dịch vụ!"
+            )
+            await UserService.send_email(
+                to_email=existing.email, subject=subject, body=body
+            )
+
         return invoice
 
     @staticmethod
@@ -141,4 +165,74 @@ class UserService:
             raise ValueError("Insufficient balance")
         await UserRepository.update(existing.id, {"balance": new_balance})
 
+        if existing.email:
+            subject = "✅ Check-out thành công tại bãi xe"
+            body = (
+                f"Xin chào {existing.name},\n\n"
+                f"Bạn vừa check-out tại bãi xe.\n"
+                f"Thời gian check-in: {start_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                f"Thời gian check-out: {end_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                f"Tổng tiền: {round(total_amount, 0):,.0f}₫\n"
+                f"Số dư hiện tại: {new_balance:,.0f}₫\n\n"
+                f"Cảm ơn bạn đã sử dụng dịch vụ!"
+            )
+            await UserService.send_email(
+                to_email=existing.email, subject=subject, body=body
+            )
+
         return updated_invoice
+
+    @staticmethod
+    async def send_email(to_email: str, subject: str, body: str):
+        """Gửi email async-safe qua SMTP"""
+        msg = MIMEMultipart()
+        msg["From"] = SMTP_USER
+        msg["To"] = to_email
+        msg["Subject"] = subject
+        msg.attach(MIMEText(body, "plain"))
+
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, UserService._send_smtp, msg, to_email)
+
+    @staticmethod
+    def _send_smtp(msg: MIMEMultipart, to_email: str):
+        """Gửi mail đồng bộ"""
+        try:
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+                server.starttls()
+                server.login(SMTP_USER, SMTP_PASS)
+                server.send_message(msg)
+        except Exception as e:
+            print(f"Failed to send email to {to_email}: {e}")
+
+    @staticmethod
+    async def send_fire_alert():
+        subject = "🔥 Cảnh báo cháy tại bãi xe!"
+        now_gmt7 = datetime.utcnow() + timedelta(hours=7)
+        now_str = now_gmt7.strftime("%Y-%m-%d %H:%M:%S")
+
+        body = (
+            f"Cảnh báo cháy được phát hiện!\nThời gian: {now_str}\n\n"
+            "Vui lòng kiểm tra và hành động ngay!"
+        )
+
+        users = await UserRepository.get_all()
+        for user in users:
+            if user.email:
+                await UserService.send_email(user.email, subject, body)
+
+    @staticmethod
+    async def send_gas_alert():
+        subject = "⚠️ Cảnh báo khí GAS tại bãi xe!"
+        now_gmt7 = datetime.utcnow() + timedelta(hours=7)
+        now_str = now_gmt7.strftime("%Y-%m-%d %H:%M:%S")
+
+        body = (
+            f"Cảnh báo khí GAS được phát hiện!\nThời gian: {now_str}\n\n"
+            "Vui lòng kiểm tra và hành động ngay!"
+        )
+
+        users = await UserRepository.get_all()
+        for user in users:
+            if user.email:
+                await UserService.send_email(user.email, subject, body)

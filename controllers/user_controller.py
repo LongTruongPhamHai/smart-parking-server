@@ -113,3 +113,29 @@ class UserController:
             }
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
+
+    @staticmethod
+    async def send_fire_alert() -> dict:
+        """
+        Gọi service để gửi email cảnh báo FIRE tới tất cả user
+        """
+        try:
+            await UserService.send_fire_alert()
+            return {"message": "Fire alert emails sent successfully"}
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, detail=f"Failed to send fire alerts: {str(e)}"
+            )
+
+    @staticmethod
+    async def send_gas_alert() -> dict:
+        """
+        Gọi service để gửi email cảnh báo GAS tới tất cả user
+        """
+        try:
+            await UserService.send_gas_alert()
+            return {"message": "Gas alert emails sent successfully"}
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, detail=f"Failed to send gas alerts: {str(e)}"
+            )

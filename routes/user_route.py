@@ -99,3 +99,13 @@ async def check_in(user: UserSignin):
 )
 async def check_out(user: UserSignin):
     return await UserController.check_out(user)
+
+
+@router.post("/fire", summary="Gửi email cảnh báo cháy")
+async def fire_alert():
+    return await UserController.send_fire_alert()
+
+
+@router.post("/gas", summary="Gửi email cảnh báo khí GAS")
+async def gas_alert():
+    return await UserController.send_gas_alert()
