@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Query
 from controllers.user_controller import UserController
-from schemas.user_schema import UserSignup, UserSignin, UserUpdate, UserResponse
+from schemas.user_schema import UserSignup, UserSignin, UserUpdate, UserResponse, UserCreateAdmin, UserChangePassword, CheckInRequest
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/users", tags=["Users"])
@@ -23,6 +23,11 @@ class CheckOutResponse(BaseModel):
 @router.post("/signup", response_model=UserResponse)
 async def signup(user: UserSignup):
     return await UserController.signup(user)
+
+
+@router.post("/admin-create", response_model=UserResponse, summary="Admin tạo user mới")
+async def admin_create_user(user: UserCreateAdmin):
+    return await UserController.admin_create_user(user)
 
 
 @router.post("/signin", response_model=UserResponse)
@@ -53,6 +58,11 @@ async def get_user_by_email(email: str):
 @router.put("/{user_id}", response_model=UserResponse)
 async def update_user(user_id: str, user: UserUpdate):
     return await UserController.update_user(user_id, user)
+
+
+@router.put("/{user_id}/change-password", summary="Thay đổi mật khẩu")
+async def change_password(user_id: str, pw_data: UserChangePassword):
+    return await UserController.change_password(user_id, pw_data)
 
 
 @router.put("/{user_id}/update-email", response_model=UserResponse)
@@ -90,7 +100,7 @@ async def delete_user(user_id: str):
 @router.post(
     "/check-in", response_model=CheckInResponse, summary="Người dùng vào bãi gửi xe"
 )
-async def check_in(user: UserSignin):
+async def check_in(user: CheckInRequest):
     return await UserController.check_in(user)
 
 

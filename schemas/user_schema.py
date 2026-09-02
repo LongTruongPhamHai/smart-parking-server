@@ -10,18 +10,36 @@ class UserSignup(BaseModel):
     password: str
 
 
+class UserCreateAdmin(BaseModel):
+    name: str
+    phone: str
+    email: str
+    password: str
+    role: str
+    balance: float = 0.0
+
+
 class UserSignin(BaseModel):
     phone: str
     password: str
 
 
+class CheckInRequest(UserSignin):
+    parking_lot_id: Optional[str] = None
+
+
+class UserChangePassword(BaseModel):
+    old_password: str
+    new_password: str
+
+
 class UserUpdate(BaseModel):
-    name: Optional[str]
-    phone: Optional[str]
-    email: Optional[str]
-    password: Optional[str]
-    role: Optional[str]
-    balance: Optional[float]
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+    balance: Optional[float] = None
 
 
 class UserResponse(BaseModel):

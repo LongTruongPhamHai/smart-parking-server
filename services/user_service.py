@@ -7,7 +7,8 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from repositories.user_repository import UserRepository
 from repositories.invoice_repository import InvoiceRepository
-from schemas.user_schema import UserSignup, UserSignin, UserUpdate
+from repositories.parking_lot_repository import ParkingLotRepository
+from schemas.user_schema import UserSignup, UserSignin, UserUpdate, UserCreateAdmin, UserChangePassword, CheckInRequest
 
 # Load biến môi trường SMTP từ .env
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
@@ -27,6 +28,15 @@ class UserService:
     @staticmethod
     async def signup(user: UserSignup):
         """Tạo user mới nếu phone/email chưa tồn tại"""
+        if await UserRepository.find_by_phone(user.phone):
+            raise ValueError("Phone already exists")
+        if user.email and await UserRepository.is_email_exists(user.email):
+            raise ValueError("Email already exists")
+        return await UserRepository.create(user.dict())
+
+    @staticmethod
+    async def admin_create_user(user: UserCreateAdmin):
+        """Tạo user mới từ quyền Admin"""
         if await UserRepository.find_by_phone(user.phone):
             raise ValueError("Phone already exists")
         if user.email and await UserRepository.is_email_exists(user.email):
@@ -62,6 +72,15 @@ class UserService:
         return await UserRepository.update(user_id, user.dict(exclude_unset=True))
 
     @staticmethod
+    async def change_password(user_id: str, pw_data: UserChangePassword):
+        user = await UserRepository.get_by_id(user_id)
+        if not user:
+            raise ValueError("User not found")
+        if user.password != pw_data.old_password:
+            raise ValueError("Incorrect old password")
+        return await UserRepository.update(user_id, {"password": pw_data.new_password})
+
+    @staticmethod
     async def update_email(user_id: str, new_email: str):
         if await UserRepository.is_email_exists(new_email):
             raise ValueError("Email already exists")
@@ -89,14 +108,32 @@ class UserService:
         return await UserRepository.delete(user_id)
 
     @staticmethod
-    async def check_in(user: UserSignin):
+    async def check_in(user: CheckInRequest):
         existing = await UserRepository.find_by_phone(user.phone)
         if not existing or existing.password != user.password:
             raise ValueError("Invalid phone or password")
 
+        # Find parking lot
+        if user.parking_lot_id:
+            assigned_lot = await ParkingLotRepository.getById(user.parking_lot_id)
+            if not assigned_lot:
+                raise ValueError("Parking lot not found")
+            if assigned_lot.status != "available":
+                raise ValueError("Selected parking lot is already occupied")
+        else:
+            all_lots = await ParkingLotRepository.getAll()
+            available_lots = [lot for lot in all_lots if lot.status == "available"]
+            if not available_lots:
+                raise ValueError("Parking is full")
+            assigned_lot = available_lots[0]
+
+        # Mark lot as occupied
+        await ParkingLotRepository.update(assigned_lot.id, {"status": "occupied"})
+
         start_time = UserService.now_gmt7()
         invoice_data = {
             "user_id": existing.id,
+            "parking_lot_id": assigned_lot.id,
             "start_time": start_time,
             "end_time": None,
             "unit_price": 30000.0,
@@ -159,6 +196,10 @@ class UserService:
             "status": "Deactive",
         }
         updated_invoice = await InvoiceRepository.updateInvoice(invoice.id, update_data)
+
+        # Free the parking lot
+        if invoice.parking_lot_id:
+            await ParkingLotRepository.update(invoice.parking_lot_id, {"status": "available"})
 
         new_balance = existing.balance - total_amount
         if new_balance < 0:

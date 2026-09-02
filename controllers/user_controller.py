@@ -1,6 +1,6 @@
 from fastapi import HTTPException
 from services.user_service import UserService
-from schemas.user_schema import UserSignup, UserSignin, UserUpdate, UserResponse
+from schemas.user_schema import UserSignup, UserSignin, UserUpdate, UserResponse, UserCreateAdmin, UserChangePassword, CheckInRequest
 
 
 class UserController:
@@ -9,6 +9,14 @@ class UserController:
     async def signup(user: UserSignup) -> UserResponse:
         try:
             new_user = await UserService.signup(user)
+            return UserResponse(**new_user.to_dict())
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    @staticmethod
+    async def admin_create_user(user: UserCreateAdmin) -> UserResponse:
+        try:
+            new_user = await UserService.admin_create_user(user)
             return UserResponse(**new_user.to_dict())
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
@@ -55,6 +63,14 @@ class UserController:
         return UserResponse(**updated.to_dict())
 
     @staticmethod
+    async def change_password(user_id: str, pw_data: UserChangePassword) -> dict:
+        try:
+            await UserService.change_password(user_id, pw_data)
+            return {"message": "Password updated successfully"}
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    @staticmethod
     async def update_email(user_id: str, new_email: str) -> UserResponse:
         try:
             updated = await UserService.update_email(user_id, new_email)
@@ -85,7 +101,7 @@ class UserController:
         return {"message": "User deleted successfully"}
 
     @staticmethod
-    async def check_in(user: UserSignin) -> dict:
+    async def check_in(user: CheckInRequest) -> dict:
         try:
             invoice = await UserService.check_in(user)
             return {

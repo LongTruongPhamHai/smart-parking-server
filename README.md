@@ -1,164 +1,47 @@
-# 🚗 Smart Parking Backend
+# ⚙️ Phân hệ Backend (Smart Parking Server)
 
-Backend API cho **Hệ thống Bãi đỗ xe Thông minh (Smart Parking)** được xây dựng với:
-
-- **FastAPI**
-- **MongoDB** (Motor hoặc PyMongo)
-- **Pydantic**
-- **Uvicorn**
-- **Python 3.10+**
-
-Hệ thống hỗ trợ quản lý người dùng, phương tiện, ví điện tử, bãi đỗ xe, giá theo loại xe và các phiên gửi xe.
+> **Dự án:** Hệ thống quản lý bãi đỗ xe thông minh (Đại học Thuỷ Lợi)  
+> **Vai trò:** Backend Server cung cấp RESTful APIs xử lý toàn bộ logic hệ thống.
 
 ---
 
-## 📁 Cấu trúc dự án
+## 🛠 Công nghệ sử dụng
 
-```
-server/
-│
-├─ venv/                          # Virtual environment
-├─ main.py                        # Entry chính của ứng dụng FastAPI
-├─ db.py                          # Cấu hình MongoDB (Motor / PyMongo)
-├─ .env                           # Biến môi trường
-├─ requirements.txt               # Danh sách thư viện cần cài đặt
-│
-├─ models/                        # Định nghĩa cấu trúc dữ liệu (MongoDB schema)
-│   ├─ __init__.py
-│   ├─ wallet_model.py
-│   ├─ vehicle_model.py
-│   ├─ vehicle_type.py
-│   ├─ parking_lot_model.py
-│   ├─ parking_price_model.py
-│   ├─ parking_transaction_model.py
-│   └─ user_model.py
-│
-├─ repositories/                  # Layer truy cập dữ liệu MongoDB
-│   ├─ __init__.py
-│   └─ user_repository.py
-│
-├─ services/                      # Business logic
-│   ├─ __init__.py
-│   └─ user_service.py
-│
-├─ controllers/                   # Xử lý request/response
-│   ├─ __init__.py
-│   └─ user_controller.py
-│
-├─ routes/                        # Định nghĩa API endpoint
-│   ├─ __init__.py
-│   └─ user_route.py
-│
-└─ schemas/                       # Pydantic schema validate dữ liệu request
-    ├─ __init__.py
-    └─ user_schema.py
-```
+- **Ngôn ngữ:** Python 3.10+
+- **Framework:** FastAPI
+- **Cơ sở dữ liệu:** MongoDB (Sử dụng thư viện `motor` để giao tiếp bất đồng bộ)
+- **Máy chủ ASGI:** Uvicorn
 
 ---
 
-## 📦 Yêu cầu môi trường
+## 📂 Cấu trúc thư mục (Architecture)
 
-Các thư viện chính:
+Server được tổ chức theo kiến trúc Controller-Service-Repository để đảm bảo clean code và dễ dàng mở rộng:
+- `controllers/`: Chứa các endpoint API (Routers), tiếp nhận Request và trả về Response.
+- `services/`: Chứa các logic nghiệp vụ (Business logic) như xử lý tính toán tiền, check-in, check-out.
+- `repositories/`: Chịu trách nhiệm trực tiếp giao tiếp với Database MongoDB (CRUD).
+- `models/`: Định nghĩa các Pydantic Models để ánh xạ với MongoDB Documents.
+- `schemas/`: Định nghĩa các Pydantic Schemas dùng để Validate dữ liệu đầu vào/ra (Request/Response).
 
-```
-fastapi
-uvicorn
-pydantic
-pydantic[email]
-python-dotenv
-motor
-```
+---
 
-Cài đặt tất cả:
+## 🚀 Hướng dẫn cài đặt và khởi chạy
 
+**Bước 1: Cài đặt thư viện**  
+Yêu cầu hệ thống đã cài đặt Python. Mở terminal tại thư mục này và chạy:
 ```bash
 pip install -r requirements.txt
 ```
 
----
+**Bước 2: Cấu hình môi trường**  
+Tuỳ chỉnh các thông số trong file `core/config.py` (hoặc tạo file `.env` nếu có) để kết nối với cơ sở dữ liệu MongoDB.
 
-## 🔐 Biến môi trường
-
-Tạo file **`.env`**:
-
-```
-MONGO_URI=mongodb://localhost:27017
-MONGO_DB_NAME=smart_parking_db
-SECRET_KEY=your_secret_key
-```
-
-Nếu dùng MongoDB Atlas:
-
-```
-MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net
-```
-
----
-
-## 🗄️ Thiết lập cơ sở dữ liệu
-
-MongoDB **không yêu cầu tạo bảng trước**.
-Các collection sẽ tự tạo khi có dữ liệu.
-
-Kiểm tra kết nối bằng:
-
-```bash
-mongosh
-use smart_parking_db
-show collections
-```
-
----
-
-## 🚀 Chạy API
-
-Chạy server FastAPI:
-
+**Bước 3: Khởi động Server**  
+Chạy lệnh sau để khởi động Backend ở chế độ phát triển (auto-reload):
 ```bash
 uvicorn main:app --reload
 ```
+Theo mặc định, Server sẽ chạy tại địa chỉ: `http://127.0.0.1:8000`.
 
-Truy cập API:
-
-```
-http://127.0.0.1:8000
-```
-
----
-
-## 📘 API Endpoints
-
-- **User** – `/users`
-
-  - Đăng ký
-  - Đăng nhập
-  - Xem/ cập nhật thông tin người dùng
-
-Có thể mở rộng:
-
-- `/vehicles` – Quản lý phương tiện
-- `/wallets` – Ví điện tử, giao dịch
-- `/parking-lots` – Bãi đỗ xe
-- `/parking-sessions` – Phiên gửi xe
-- `/transactions` – Hóa đơn/ghi nhận thanh toán
-
-Tài liệu Swagger:
-
-```
-http://127.0.0.1:8000/docs
-```
-
----
-
-## 📝 Lưu ý phát triển
-
-- Dùng **venv** để tách môi trường.
-- MongoDB không cần migration, nhưng **nên**:
-
-  - Define schema bằng Pydantic (validate input)
-  - Chuẩn hóa dữ liệu trong model Python
-
-- **repositories**: xử lý truy vấn MongoDB
-- **services**: logic nghiệp vụ
-- **controllers**: điều phối request – service – response
-- **routes**: tổ chức endpoint rõ ràng theo module
+**Bước 4: Xem tài liệu API (Swagger UI)**  
+Truy cập vào trình duyệt: `http://127.0.0.1:8000/docs` để trải nghiệm trực tiếp giao diện Swagger UI tự động sinh ra bởi FastAPI.
