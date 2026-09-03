@@ -101,3 +101,11 @@ class UserRepository:
         """
         user = await UserRepository.collection.find_one({"email": email})
         return user is not None
+
+    @staticmethod
+    async def get_admins() -> list:
+        """
+        Lấy danh sách tất cả user có role = Admin
+        """
+        users = await UserRepository.collection.find({"role": "Admin"}).to_list(100)
+        return [UserModel(u) for u in users]

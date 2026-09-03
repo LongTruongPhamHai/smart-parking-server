@@ -148,12 +148,39 @@ class UserService:
             body = (
                 f"Xin chào {existing.name},\n\n"
                 f"Bạn vừa check-in tại bãi xe.\n"
+                f"Vị trí đỗ: {assigned_lot.name}\n"
                 f"Thời gian check-in: {start_time.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
                 f"Cảm ơn bạn đã sử dụng dịch vụ!"
             )
             await UserService.send_email(
                 to_email=existing.email, subject=subject, body=body
             )
+
+        # Gửi mail thông báo cho Admin khi có xe vào bãi
+        all_lots = await ParkingLotRepository.getAll()
+        total_lots = len(all_lots)
+        available_count = len([lot for lot in all_lots if lot.status == "available"])
+        occupied_count = total_lots - available_count
+
+        admins = await UserRepository.get_admins()
+        for admin in admins:
+            if admin.email:
+                admin_subject = "🚗 Xe vào bãi — Cập nhật trạng thái bãi đỗ"
+                admin_body = (
+                    f"Xin chào Admin {admin.name},\n\n"
+                    f"Có xe mới vào bãi đỗ.\n"
+                    f"Khách hàng: {existing.name} ({existing.phone})\n"
+                    f"Vị trí đỗ: {assigned_lot.name}\n"
+                    f"Thời gian: {start_time.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                    f"📊 Trạng thái bãi xe hiện tại:\n"
+                    f"  • Tổng số chỗ: {total_lots}\n"
+                    f"  • Đang sử dụng: {occupied_count}\n"
+                    f"  • Còn trống: {available_count}\n\n"
+                    f"Hệ thống Smart Parking thông báo tự động."
+                )
+                await UserService.send_email(
+                    to_email=admin.email, subject=admin_subject, body=admin_body
+                )
 
         return invoice
 
@@ -189,6 +216,12 @@ class UserService:
             hours_rounded = hours + (0.5 if minutes > 30 else 0)
             total_amount = unit_price * hours_rounded
 
+        # Kiểm tra số dư TRƯỚC KHI thực hiện bất kỳ thay đổi nào
+        new_balance = existing.balance - total_amount
+        if new_balance < 0:
+            raise ValueError("Insufficient balance")
+
+        # Số dư đủ → cập nhật hóa đơn
         update_data = {
             "end_time": end_time,
             "duration": total_seconds / 3600,
@@ -197,13 +230,11 @@ class UserService:
         }
         updated_invoice = await InvoiceRepository.updateInvoice(invoice.id, update_data)
 
-        # Free the parking lot
+        # Giải phóng bãi đỗ
         if invoice.parking_lot_id:
             await ParkingLotRepository.update(invoice.parking_lot_id, {"status": "available"})
 
-        new_balance = existing.balance - total_amount
-        if new_balance < 0:
-            raise ValueError("Insufficient balance")
+        # Trừ tiền
         await UserRepository.update(existing.id, {"balance": new_balance})
 
         if existing.email:
@@ -220,6 +251,33 @@ class UserService:
             await UserService.send_email(
                 to_email=existing.email, subject=subject, body=body
             )
+
+        # Gửi mail thông báo cho Admin khi xe ra khỏi bãi
+        all_lots = await ParkingLotRepository.getAll()
+        total_lots = len(all_lots)
+        available_count = len([lot for lot in all_lots if lot.status == "available"])
+        occupied_count = total_lots - available_count
+
+        admins = await UserRepository.get_admins()
+        for admin in admins:
+            if admin.email:
+                admin_subject = "🚙 Xe ra khỏi bãi — Cập nhật trạng thái bãi đỗ"
+                admin_body = (
+                    f"Xin chào Admin {admin.name},\n\n"
+                    f"Có xe vừa check-out rời khỏi bãi đỗ.\n"
+                    f"Khách hàng: {existing.name} ({existing.phone})\n"
+                    f"Thời gian check-in: {start_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                    f"Thời gian check-out: {end_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                    f"Tổng tiền thanh toán: {round(total_amount, 0):,.0f}₫\n\n"
+                    f"📊 Trạng thái bãi xe hiện tại:\n"
+                    f"  • Tổng số chỗ: {total_lots}\n"
+                    f"  • Đang sử dụng: {occupied_count}\n"
+                    f"  • Còn trống: {available_count}\n\n"
+                    f"Hệ thống Smart Parking thông báo tự động."
+                )
+                await UserService.send_email(
+                    to_email=admin.email, subject=admin_subject, body=admin_body
+                )
 
         return updated_invoice
 
