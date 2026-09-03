@@ -1,21 +1,23 @@
 import os
 import pytz
 import smtplib
-import socket
-import ssl
 import asyncio
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from dotenv import load_dotenv
 from repositories.user_repository import UserRepository
 from repositories.invoice_repository import InvoiceRepository
 from repositories.parking_lot_repository import ParkingLotRepository
-from schemas.user_schema import UserSignup, UserSignin, UserUpdate, UserCreateAdmin, UserChangePassword, CheckInRequest
+from schemas.user_schema import (
+    UserSignup,
+    UserSignin,
+    UserUpdate,
+    UserCreateAdmin,
+    UserChangePassword,
+    CheckInRequest,
+)
 
-# Đảm bảo load biến môi trường từ .env
-load_dotenv()
-
+# Load biến môi trường SMTP từ .env
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
 SMTP_USER = os.getenv("SMTP_USER", "")
@@ -118,11 +120,6 @@ class UserService:
         if not existing or existing.password != user.password:
             raise ValueError("Invalid phone or password")
 
-        # Kiểm tra xem khách hàng đã có hóa đơn đang Active chưa
-        active_invoice = await InvoiceRepository.getActiveInvoiceByUserId(existing.id)
-        if active_invoice:
-            raise ValueError("Khách hàng đang gửi xe trong bãi (đã check-in), vui lòng check-out trước!")
-
         # Find parking lot
         if user.parking_lot_id:
             assigned_lot = await ParkingLotRepository.getById(user.parking_lot_id)
@@ -200,11 +197,11 @@ class UserService:
         if not existing or existing.password != user.password:
             raise ValueError("Invalid phone or password")
 
-        # Lấy đúng hóa đơn Active duy nhất (thay vì lấy max start_time)
-        invoice = await InvoiceRepository.getActiveInvoiceByUserId(existing.id)
-        if not invoice:
-            raise ValueError("Không tìm thấy hóa đơn đang hoạt động. Khách hàng chưa check-in hoặc đã check-out rồi!")
+        invoices = await InvoiceRepository.getInvoiceByUserId(existing.id)
+        if not invoices:
+            raise ValueError("No invoice found for this user")
 
+        invoice = max(invoices, key=lambda x: x.start_time)
         end_time = UserService.now_gmt7()
 
         if not invoice.start_time:
@@ -242,7 +239,9 @@ class UserService:
 
         # Giải phóng bãi đỗ
         if invoice.parking_lot_id:
-            await ParkingLotRepository.update(invoice.parking_lot_id, {"status": "available"})
+            await ParkingLotRepository.update(
+                invoice.parking_lot_id, {"status": "available"}
+            )
 
         # Trừ tiền
         await UserRepository.update(existing.id, {"balance": new_balance})
@@ -300,53 +299,19 @@ class UserService:
         msg["Subject"] = subject
         msg.attach(MIMEText(body, "plain"))
 
-        loop = asyncio.get_running_loop()
+        loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, UserService._send_smtp, msg, to_email)
 
     @staticmethod
     def _send_smtp(msg: MIMEMultipart, to_email: str):
-        """Gửi mail đồng bộ ép IPv4 & hỗ trợ cả port 465 (SSL) lẫn 587 (TLS)"""
-        if not SMTP_USER or not SMTP_PASS:
-            print(f"[EMAIL ERROR] SMTP_USER hoặc SMTP_PASS chưa được cấu hình. Bỏ qua gửi mail tới {to_email}")
-            return
-
-        # Monkey-patch socket để ép ưu tiên dùng IPv4 (tránh lỗi [Errno 101] Network is unreachable)
-        orig_getaddrinfo = socket.getaddrinfo
-
-        def getaddrinfo_ipv4(*args, **kwargs):
-            responses = orig_getaddrinfo(*args, **kwargs)
-            ipv4_responses = [r for r in responses if r[0] == socket.AF_INET]
-            return ipv4_responses if ipv4_responses else responses
-
+        """Gửi mail đồng bộ"""
         try:
-            socket.getaddrinfo = getaddrinfo_ipv4
-
-            # Nếu port 465 -> dùng SSL trực tiếp
-            if SMTP_PORT == 465:
-                context = ssl.create_default_context()
-                with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=20) as server:
-                    server.login(SMTP_USER, SMTP_PASS)
-                    server.send_message(msg)
-                    print(f"[EMAIL OK] Đã gửi email (SSL 465) tới {to_email}")
-            else:
-                # Port 587 hoặc khác -> dùng STARTTLS
-                with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as server:
-                    server.starttls()
-                    server.login(SMTP_USER, SMTP_PASS)
-                    server.send_message(msg)
-                    print(f"[EMAIL OK] Đã gửi email (TLS {SMTP_PORT}) tới {to_email}")
-
-        except smtplib.SMTPAuthenticationError as e:
-            print(f"[EMAIL ERROR] Xác thực SMTP thất bại (sai SMTP_USER/SMTP_PASS): {e}")
-        except smtplib.SMTPConnectError as e:
-            print(f"[EMAIL ERROR] Không thể kết nối SMTP server {SMTP_HOST}:{SMTP_PORT}: {e}")
-        except smtplib.SMTPException as e:
-            print(f"[EMAIL ERROR] Lỗi SMTP khi gửi tới {to_email}: {e}")
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+                server.starttls()
+                server.login(SMTP_USER, SMTP_PASS)
+                server.send_message(msg)
         except Exception as e:
-            print(f"[EMAIL ERROR] Lỗi gửi mail tới {to_email}: {e}")
-        finally:
-            # Khôi phục socket nguyên bản
-            socket.getaddrinfo = orig_getaddrinfo
+            print(f"Failed to send email to {to_email}: {e}")
 
     @staticmethod
     async def send_fire_alert():
