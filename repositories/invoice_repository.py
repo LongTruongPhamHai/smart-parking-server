@@ -55,6 +55,16 @@ class InvoiceRepository:
         return [InvoiceModel(i) for i in invoices]
 
     @staticmethod
+    async def getActiveInvoiceByUserId(uid: str) -> InvoiceModel | None:
+        """
+        Lấy hóa đơn đang Active duy nhất của một user
+        """
+        invoice_data = await InvoiceRepository.collection.find_one(
+            {"user_id": uid, "status": "Active"}
+        )
+        return InvoiceModel(invoice_data) if invoice_data else None
+
+    @staticmethod
     async def getInvoiceByPlot(plot_id: str) -> list[InvoiceModel]:
         """
         Lấy tất cả hóa đơn theo ô đỗ (dành cho Admin)
