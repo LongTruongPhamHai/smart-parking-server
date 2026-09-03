@@ -5,12 +5,15 @@ import asyncio
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from dotenv import load_dotenv
 from repositories.user_repository import UserRepository
 from repositories.invoice_repository import InvoiceRepository
 from repositories.parking_lot_repository import ParkingLotRepository
 from schemas.user_schema import UserSignup, UserSignin, UserUpdate, UserCreateAdmin, UserChangePassword, CheckInRequest
 
-# Load biến môi trường SMTP từ .env
+# Đảm bảo load biến môi trường từ .env
+load_dotenv()
+
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
 SMTP_USER = os.getenv("SMTP_USER", "")
@@ -290,19 +293,30 @@ class UserService:
         msg["Subject"] = subject
         msg.attach(MIMEText(body, "plain"))
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, UserService._send_smtp, msg, to_email)
 
     @staticmethod
     def _send_smtp(msg: MIMEMultipart, to_email: str):
         """Gửi mail đồng bộ"""
         try:
-            with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            if not SMTP_USER or not SMTP_PASS:
+                print(f"[EMAIL ERROR] SMTP_USER hoặc SMTP_PASS chưa được cấu hình. Bỏ qua gửi mail tới {to_email}")
+                return
+
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as server:
                 server.starttls()
                 server.login(SMTP_USER, SMTP_PASS)
                 server.send_message(msg)
+                print(f"[EMAIL OK] Đã gửi email tới {to_email}")
+        except smtplib.SMTPAuthenticationError as e:
+            print(f"[EMAIL ERROR] Xác thực SMTP thất bại (sai SMTP_USER/SMTP_PASS): {e}")
+        except smtplib.SMTPConnectError as e:
+            print(f"[EMAIL ERROR] Không thể kết nối SMTP server {SMTP_HOST}:{SMTP_PORT}: {e}")
+        except smtplib.SMTPException as e:
+            print(f"[EMAIL ERROR] Lỗi SMTP khi gửi tới {to_email}: {e}")
         except Exception as e:
-            print(f"Failed to send email to {to_email}: {e}")
+            print(f"[EMAIL ERROR] Lỗi không xác định khi gửi tới {to_email}: {e}")
 
     @staticmethod
     async def send_fire_alert():
