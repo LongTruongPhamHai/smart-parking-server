@@ -4,6 +4,7 @@ from routes import (
     invoice_route,
     user_route,
     parking_lot_route,
+    notification_route,
 )
 
 app = FastAPI()
@@ -29,3 +30,4 @@ async def root():
 app.include_router(user_route.router)
 app.include_router(parking_lot_route.router)
 app.include_router(invoice_route.router)
+app.include_router(notification_route.router)

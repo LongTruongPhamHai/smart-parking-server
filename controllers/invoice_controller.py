@@ -1,6 +1,7 @@
 from fastapi import HTTPException
 from datetime import datetime
 from schemas.invoice_schema import InvoiceResponse
+from repositories.user_repository import UserRepository
 
 
 class InvoiceController:
@@ -35,7 +36,14 @@ class InvoiceController:
         """
         try:
             invoices = await self.service.get_all_invoices()
-            return [InvoiceResponse(**i.to_dict()) for i in invoices]
+            result = []
+            for inv in invoices:
+                inv_dict = inv.to_dict()
+                # Lookup user_name from user_id
+                user = await UserRepository.get_by_id(inv_dict['user_id'])
+                inv_dict['user_name'] = user.name if user else None
+                result.append(InvoiceResponse(**inv_dict))
+            return result
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
 

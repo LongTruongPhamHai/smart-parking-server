@@ -11,6 +11,7 @@ class InvoiceCreate(BaseModel):
 class InvoiceResponse(BaseModel):
     id: str
     user_id: str
+    user_name: Optional[str] = None
     start_time: datetime
     end_time: Optional[datetime]
     unit_price: float

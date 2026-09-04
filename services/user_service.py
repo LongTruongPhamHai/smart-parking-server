@@ -1,13 +1,14 @@
 import os
 import pytz
-import smtplib
-import asyncio
+# import smtplib  # REMOVED: Email notification replaced with in-app notifications
+# import asyncio
 from datetime import datetime, timedelta
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+# from email.mime.text import MIMEText  # REMOVED
+# from email.mime.multipart import MIMEMultipart  # REMOVED
 from repositories.user_repository import UserRepository
 from repositories.invoice_repository import InvoiceRepository
 from repositories.parking_lot_repository import ParkingLotRepository
+from services.notification_service import NotificationService
 from schemas.user_schema import (
     UserSignup,
     UserSignin,
@@ -17,11 +18,11 @@ from schemas.user_schema import (
     CheckInRequest,
 )
 
-# Load biến môi trường SMTP từ .env
-SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
-SMTP_USER = os.getenv("SMTP_USER", "")
-SMTP_PASS = os.getenv("SMTP_PASS", "")
+# # REMOVED: SMTP config - using in-app notifications now
+# SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+# SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
+# SMTP_USER = os.getenv("SMTP_USER", "")
+# SMTP_PASS = os.getenv("SMTP_PASS", "")
 
 
 class UserService:
@@ -150,20 +151,20 @@ class UserService:
         }
         invoice = await InvoiceRepository.createInvoice(invoice_data)
 
-        if existing.email:
-            subject = "✅ Check-in thành công tại bãi xe"
-            body = (
-                f"Xin chào {existing.name},\n\n"
-                f"Bạn vừa check-in tại bãi xe.\n"
-                f"Vị trí đỗ: {assigned_lot.name}\n"
-                f"Thời gian check-in: {start_time.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-                f"Cảm ơn bạn đã sử dụng dịch vụ!"
-            )
-            await UserService.send_email(
-                to_email=existing.email, subject=subject, body=body
+        # Gửi notification cho user khi check-in thành công
+        if existing.id:
+            await NotificationService.create_notification(
+                user_id=str(existing.id),
+                title="✅ Check-in thành công",
+                message=(
+                    f"Bạn vừa check-in tại bãi xe.\n"
+                    f"Vị trí đỗ: {assigned_lot.name}\n"
+                    f"Thời gian check-in: {start_time.strftime('%Y-%m-%d %H:%M:%S')}"
+                ),
+                notif_type="success"
             )
 
-        # Gửi mail thông báo cho Admin khi có xe vào bãi
+        # Gửi notification cho Admin khi có xe vào bãi
         all_lots = await ParkingLotRepository.getAll()
         total_lots = len(all_lots)
         available_count = len([lot for lot in all_lots if lot.status == "available"])
@@ -171,10 +172,10 @@ class UserService:
 
         admins = await UserRepository.get_admins()
         for admin in admins:
-            if admin.email:
-                admin_subject = "🚗 Xe vào bãi — Cập nhật trạng thái bãi đỗ"
-                admin_body = (
-                    f"Xin chào Admin {admin.name},\n\n"
+            await NotificationService.create_notification(
+                user_id=str(admin.id),
+                title="🚗 Xe vào bãi",
+                message=(
                     f"Có xe mới vào bãi đỗ.\n"
                     f"Khách hàng: {existing.name} ({existing.phone})\n"
                     f"Vị trí đỗ: {assigned_lot.name}\n"
@@ -182,12 +183,10 @@ class UserService:
                     f"📊 Trạng thái bãi xe hiện tại:\n"
                     f"  • Tổng số chỗ: {total_lots}\n"
                     f"  • Đang sử dụng: {occupied_count}\n"
-                    f"  • Còn trống: {available_count}\n\n"
-                    f"Hệ thống Smart Parking thông báo tự động."
-                )
-                await UserService.send_email(
-                    to_email=admin.email, subject=admin_subject, body=admin_body
-                )
+                    f"  • Còn trống: {available_count}"
+                ),
+                notif_type="info"
+            )
 
         return invoice
 
@@ -246,22 +245,22 @@ class UserService:
         # Trừ tiền
         await UserRepository.update(existing.id, {"balance": new_balance})
 
-        if existing.email:
-            subject = "✅ Check-out thành công tại bãi xe"
-            body = (
-                f"Xin chào {existing.name},\n\n"
-                f"Bạn vừa check-out tại bãi xe.\n"
-                f"Thời gian check-in: {start_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
-                f"Thời gian check-out: {end_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
-                f"Tổng tiền: {round(total_amount, 0):,.0f}₫\n"
-                f"Số dư hiện tại: {new_balance:,.0f}₫\n\n"
-                f"Cảm ơn bạn đã sử dụng dịch vụ!"
-            )
-            await UserService.send_email(
-                to_email=existing.email, subject=subject, body=body
+        # Gửi notification cho user khi check-out thành công
+        if existing.id:
+            await NotificationService.create_notification(
+                user_id=str(existing.id),
+                title="✅ Check-out thành công",
+                message=(
+                    f"Bạn vừa check-out tại bãi xe.\n"
+                    f"Thời gian check-in: {start_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                    f"Thời gian check-out: {end_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                    f"Tổng tiền: {round(total_amount, 0):,.0f}₫\n"
+                    f"Số dư hiện tại: {new_balance:,.0f}₫"
+                ),
+                notif_type="success"
             )
 
-        # Gửi mail thông báo cho Admin khi xe ra khỏi bãi
+        # Gửi notification cho Admin khi xe check-out
         all_lots = await ParkingLotRepository.getAll()
         total_lots = len(all_lots)
         available_count = len([lot for lot in all_lots if lot.status == "available"])
@@ -269,78 +268,62 @@ class UserService:
 
         admins = await UserRepository.get_admins()
         for admin in admins:
-            if admin.email:
-                admin_subject = "🚙 Xe ra khỏi bãi — Cập nhật trạng thái bãi đỗ"
-                admin_body = (
-                    f"Xin chào Admin {admin.name},\n\n"
-                    f"Có xe vừa check-out rời khỏi bãi đỗ.\n"
+            await NotificationService.create_notification(
+                user_id=str(admin.id),
+                title="🚙 Xe check-out khỏi bãi",
+                message=(
                     f"Khách hàng: {existing.name} ({existing.phone})\n"
                     f"Thời gian check-in: {start_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
                     f"Thời gian check-out: {end_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
                     f"Tổng tiền thanh toán: {round(total_amount, 0):,.0f}₫\n\n"
-                    f"📊 Trạng thái bãi xe hiện tại:\n"
+                    f"📊 Trạng thái bãi xe:\n"
                     f"  • Tổng số chỗ: {total_lots}\n"
                     f"  • Đang sử dụng: {occupied_count}\n"
-                    f"  • Còn trống: {available_count}\n\n"
-                    f"Hệ thống Smart Parking thông báo tự động."
-                )
-                await UserService.send_email(
-                    to_email=admin.email, subject=admin_subject, body=admin_body
-                )
+                    f"  • Còn trống: {available_count}"
+                ),
+                notif_type="info"
+            )
 
         return updated_invoice
 
-    @staticmethod
-    async def send_email(to_email: str, subject: str, body: str):
-        """Gửi email async-safe qua SMTP"""
-        msg = MIMEMultipart()
-        msg["From"] = SMTP_USER
-        msg["To"] = to_email
-        msg["Subject"] = subject
-        msg.attach(MIMEText(body, "plain"))
 
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, UserService._send_smtp, msg, to_email)
-
-    @staticmethod
-    def _send_smtp(msg: MIMEMultipart, to_email: str):
-        """Gửi mail đồng bộ"""
-        try:
-            with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-                server.starttls()
-                server.login(SMTP_USER, SMTP_PASS)
-                server.send_message(msg)
-        except Exception as e:
-            print(f"Failed to send email to {to_email}: {e}")
+    # REMOVED: Email functions - replaced with in-app notifications
+    # @staticmethod
+    # async def send_email(to_email: str, subject: str, body: str):
+    #     """Gửi email async-safe qua SMTP"""
+    #     ...
+    # @staticmethod
+    # def _send_smtp(msg: MIMEMultipart, to_email: str):
+    #     """Gửi mail đồng bộ"""
+    #     ...
 
     @staticmethod
     async def send_fire_alert():
-        subject = "🔥 Cảnh báo cháy tại bãi xe!"
+        """Gửi thông báo cháy cho tất cả users"""
         now_gmt7 = datetime.utcnow() + timedelta(hours=7)
         now_str = now_gmt7.strftime("%Y-%m-%d %H:%M:%S")
 
-        body = (
-            f"Cảnh báo cháy được phát hiện!\nThời gian: {now_str}\n\n"
-            "Vui lòng kiểm tra và hành động ngay!"
-        )
+        title = "🔥 Cảnh báo cháy tại bãi xe!"
+        message = f"Cảnh báo cháy được phát hiện!\nThời gian: {now_str}\n\nVui lòng kiểm tra và hành động ngay!"
 
-        users = await UserRepository.get_all()
-        for user in users:
-            if user.email:
-                await UserService.send_email(user.email, subject, body)
+        await NotificationService.create_notification_for_all_users(
+            title=title,
+            message=message,
+            notif_type="fire"
+        )
 
     @staticmethod
     async def send_gas_alert():
-        subject = "⚠️ Cảnh báo khí GAS tại bãi xe!"
+        """Gửi thông báo khí gas cho tất cả users"""
         now_gmt7 = datetime.utcnow() + timedelta(hours=7)
         now_str = now_gmt7.strftime("%Y-%m-%d %H:%M:%S")
 
-        body = (
-            f"Cảnh báo khí GAS được phát hiện!\nThời gian: {now_str}\n\n"
-            "Vui lòng kiểm tra và hành động ngay!"
+        title = "⚠️ Cảnh báo khí GAS tại bãi xe!"
+        message = f"Cảnh báo khí GAS được phát hiện!\nThời gian: {now_str}\n\nVui lòng kiểm tra và hành động ngay!"
+
+        await NotificationService.create_notification_for_all_users(
+            title=title,
+            message=message,
+            notif_type="gas"
         )
 
-        users = await UserRepository.get_all()
-        for user in users:
-            if user.email:
-                await UserService.send_email(user.email, subject, body)
